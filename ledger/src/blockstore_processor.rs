@@ -46,7 +46,7 @@ use {
     },
     solana_signature::Signature,
     solana_svm::{
-        pre_accounts_collector::PreAccountsCollector,
+        pre_accounts_collector::{PreAccountEntry, PreAccountsCollector},
         transaction_commit_result::{TransactionCommitResult, TransactionCommitResultExtensions},
         transaction_processing_result::ProcessedTransaction,
         transaction_processor::ExecutionRecordingConfig,
@@ -375,7 +375,7 @@ fn get_transaction_costs<'a, Tx: TransactionWithMeta>(
 
 fn compile_pre_accounts(
     pre_accounts_collector: Option<PreAccountsCollector>,
-) -> Vec<Vec<(Pubkey, Vec<u8>)>> {
+) -> Vec<Vec<PreAccountEntry>> {
     pre_accounts_collector
         .map(|collector| collector.into_vecs())
         .unwrap_or_default()
@@ -2590,7 +2590,7 @@ pub struct TransactionStatusBatch {
     pub token_balances: TransactionTokenBalancesSet,
     pub costs: Vec<Option<u64>>,
     pub transaction_indexes: Vec<usize>,
-    pub pre_accounts: Vec<Vec<(Pubkey, Vec<u8>)>>,
+    pub pre_accounts: Vec<Vec<PreAccountEntry>>,
 }
 
 #[derive(Clone, Debug)]
@@ -2609,7 +2609,7 @@ impl TransactionStatusSender {
         token_balances: TransactionTokenBalancesSet,
         costs: Vec<Option<u64>>,
         transaction_indexes: Vec<usize>,
-        pre_accounts: Vec<Vec<(Pubkey, Vec<u8>)>>,
+        pre_accounts: Vec<Vec<PreAccountEntry>>,
     ) {
         let work_sequence = self
             .dependency_tracker

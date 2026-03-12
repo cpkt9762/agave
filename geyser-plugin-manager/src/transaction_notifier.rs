@@ -2,13 +2,11 @@
 use {
     crate::geyser_plugin_manager::GeyserPluginManager,
     agave_geyser_plugin_interface::geyser_plugin_interface::{
-        ReplicaTransactionInfoV4, ReplicaTransactionInfoVersions,
+        PreAccountEntry, ReplicaTransactionInfoV4, ReplicaTransactionInfoVersions,
     },
     log::*,
     solana_clock::Slot,
     solana_hash::Hash,
-    solana_pubkey::Pubkey,
-    solana_pubkey::Pubkey,
     solana_rpc::transaction_notifier_interface::TransactionNotifier,
     solana_signature::Signature,
     solana_transaction::versioned::VersionedTransaction,
@@ -34,7 +32,7 @@ impl TransactionNotifier for TransactionNotifierImpl {
         is_vote: bool,
         transaction_status_meta: &TransactionStatusMeta,
         transaction: &VersionedTransaction,
-        pre_accounts_data: &[(Pubkey, Vec<u8>)],
+        pre_accounts_data: &[PreAccountEntry],
     ) {
         let transaction_log_info = Self::build_replica_transaction_info(
             index,
@@ -90,7 +88,7 @@ impl TransactionNotifierImpl {
         is_vote: bool,
         transaction_status_meta: &'a TransactionStatusMeta,
         transaction: &'a VersionedTransaction,
-        pre_accounts_data: &'a [(Pubkey, Vec<u8>)],
+        pre_accounts_data: &'a [PreAccountEntry],
     ) -> ReplicaTransactionInfoV4<'a> {
         ReplicaTransactionInfoV4 {
             index,
