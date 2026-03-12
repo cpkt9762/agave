@@ -1,0 +1,9 @@
+#!/bin/sh
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SYSROOT="$SCRIPT_DIR/x86_64-linux-gnu-sysroot"
+exec x86_64-linux-gnu-g++ \
+    --sysroot="$SYSROOT" \
+    -isystem "$SYSROOT/usr/include/x86_64-linux-gnu" \
+    -L"$SYSROOT/usr/lib/x86_64-linux-gnu" \
+    -L"$SYSROOT/lib/x86_64-linux-gnu" \
+    "$@"
