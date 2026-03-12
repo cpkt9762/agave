@@ -371,7 +371,10 @@ pub(crate) mod tests {
         solana_runtime::bank::{Bank, TransactionBalancesSet},
         solana_signature::Signature,
         solana_signer::Signer,
-        solana_svm::transaction_execution_result::TransactionLoadedAccountsStats,
+        solana_svm::{
+            pre_accounts_collector::PreAccountEntry,
+            transaction_execution_result::TransactionLoadedAccountsStats,
+        },
         solana_system_transaction as system_transaction,
         solana_transaction::{
             Transaction,
@@ -419,7 +422,7 @@ pub(crate) mod tests {
             _is_vote: bool,
             transaction_status_meta: &TransactionStatusMeta,
             transaction: &VersionedTransaction,
-            _pre_accounts_data: &[(Pubkey, Vec<u8>)],
+            _pre_accounts_data: &[PreAccountEntry],
         ) {
             self.notifications.insert(
                 TestNotifierKey {
