@@ -133,6 +133,7 @@ pub struct TvuConfig {
     pub replay_transactions_threads: NonZeroUsize,
     pub shred_sigverify_threads: NonZeroUsize,
     pub xdp_sender: Option<XdpSender>,
+    pub pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
 }
 
 impl Default for TvuConfig {
@@ -147,6 +148,7 @@ impl Default for TvuConfig {
             replay_transactions_threads: NonZeroUsize::new(1).expect("1 is non-zero"),
             shred_sigverify_threads: NonZeroUsize::new(1).expect("1 is non-zero"),
             xdp_sender: None,
+            pre_accounts_program_ids: None,
         }
     }
 }
@@ -523,6 +525,7 @@ impl Tvu {
             vote_tracker,
             cluster_slots,
             log_messages_bytes_limit,
+            pre_accounts_program_ids: tvu_config.pre_accounts_program_ids.clone(),
             prioritization_fee_cache,
             banking_tracer,
             snapshot_controller,

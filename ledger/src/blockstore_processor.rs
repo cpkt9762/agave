@@ -46,6 +46,7 @@ use {
     },
     solana_signature::Signature,
     solana_svm::{
+        pre_accounts_collector::PreAccountsCollector,
         transaction_commit_result::{TransactionCommitResult, TransactionCommitResultExtensions},
         transaction_processing_result::ProcessedTransaction,
         transaction_processor::ExecutionRecordingConfig,
@@ -177,6 +178,7 @@ pub fn execute_batch<'a>(
     replay_vote_send_type: ReplayVoteSendType,
     timings: &'a mut ExecuteTimings,
     log_messages_bytes_limit: Option<usize>,
+    pre_accounts_program_ids: Option<&'a HashSet<Pubkey>>,
     prioritization_fee_cache: Option<&'a PrioritizationFeeCache>,
     extra_pre_commit_callback: Option<
         impl FnOnce(&Result<ProcessedTransaction>) -> Result<Option<usize>>,
@@ -243,14 +245,22 @@ pub fn execute_batch<'a>(
         }
     };
 
-    let (commit_results, balance_collector) = batch
+    let execution_recording_config = ExecutionRecordingConfig {
+        enable_cpi_recording: transaction_status_sender.is_some(),
+        enable_log_recording: transaction_status_sender.is_some(),
+        enable_return_data_recording: transaction_status_sender.is_some(),
+        enable_transaction_balance_recording: transaction_status_sender.is_some(),
+        enable_pre_accounts_recording: pre_accounts_program_ids.is_some(),
+    };
+    let (commit_results, balance_collector, pre_accounts_collector) = batch
         .bank()
-        .load_execute_and_commit_transactions_with_pre_commit_callback(
+        .load_execute_and_commit_transactions_with_pre_commit_callback_and_pre_accounts(
             batch,
             MAX_PROCESSING_AGE,
-            ExecutionRecordingConfig::new_single_setting(transaction_status_sender.is_some()),
+            execution_recording_config,
             timings,
             log_messages_bytes_limit,
+            pre_accounts_program_ids,
             pre_commit_callback,
         )?;
 
@@ -311,6 +321,8 @@ pub fn execute_batch<'a>(
 
         let (balances, token_balances) =
             compile_collected_balances(balance_collector.unwrap_or_default());
+        let mut pre_accounts = compile_pre_accounts(pre_accounts_collector);
+        pre_accounts.resize(transactions.len(), vec![]);
 
         // The length of costs vector needs to be consistent with all other
         // vectors that are sent over (such as `transactions`). So, replace the
@@ -328,6 +340,7 @@ pub fn execute_batch<'a>(
             token_balances,
             tx_costs,
             transaction_indexes.into_owned(),
+            pre_accounts,
         );
     }
 
@@ -358,6 +371,14 @@ fn get_transaction_costs<'a, Tx: TransactionWithMeta>(
             }
         })
         .collect()
+}
+
+fn compile_pre_accounts(
+    pre_accounts_collector: Option<PreAccountsCollector>,
+) -> Vec<Vec<(Pubkey, Vec<u8>)>> {
+    pre_accounts_collector
+        .map(|collector| collector.into_vecs())
+        .unwrap_or_default()
 }
 
 fn check_block_cost_limits<Tx: TransactionWithMeta>(
@@ -403,6 +424,7 @@ fn execute_batches_internal(
     transaction_status_sender: Option<&TransactionStatusSender>,
     replay_vote_sender: Option<&ReplayVoteSender>,
     log_messages_bytes_limit: Option<usize>,
+    pre_accounts_program_ids: Option<&HashSet<Pubkey>>,
     prioritization_fee_cache: Option<&PrioritizationFeeCache>,
 ) -> Result<ExecuteBatchesInternalMetrics> {
     assert!(!batches.is_empty());
@@ -428,6 +450,7 @@ fn execute_batches_internal(
                     },
                     &mut timings,
                     log_messages_bytes_limit,
+                    pre_accounts_program_ids,
                     prioritization_fee_cache,
                     None::<fn(&_) -> _>,
                 ));
@@ -487,6 +510,7 @@ fn process_batches(
     replay_vote_sender: Option<&ReplayVoteSender>,
     batch_execution_timing: &mut BatchExecutionTiming,
     log_messages_bytes_limit: Option<usize>,
+    pre_accounts_program_ids: Option<&HashSet<Pubkey>>,
     prioritization_fee_cache: Option<&PrioritizationFeeCache>,
 ) -> Result<()> {
     if bank.has_installed_scheduler() {
@@ -530,6 +554,7 @@ fn process_batches(
             replay_vote_sender,
             batch_execution_timing,
             log_messages_bytes_limit,
+            pre_accounts_program_ids,
             prioritization_fee_cache,
         )
     }
@@ -572,6 +597,7 @@ fn execute_batches(
     replay_vote_sender: Option<&ReplayVoteSender>,
     timing: &mut BatchExecutionTiming,
     log_messages_bytes_limit: Option<usize>,
+    pre_accounts_program_ids: Option<&HashSet<Pubkey>>,
     prioritization_fee_cache: Option<&PrioritizationFeeCache>,
 ) -> Result<()> {
     if locked_entries.len() == 0 {
@@ -606,6 +632,7 @@ fn execute_batches(
         transaction_status_sender,
         replay_vote_sender,
         log_messages_bytes_limit,
+        pre_accounts_program_ids,
         prioritization_fee_cache,
     )?;
 
@@ -679,6 +706,8 @@ pub fn process_entries_for_tests(
         &mut batch_timing,
         None,
         None,
+        None,
+        &MigrationStatus::default(),
     );
 
     debug!("process_entries: {batch_timing:?}");
@@ -693,6 +722,7 @@ fn process_entries(
     replay_vote_sender: Option<&ReplayVoteSender>,
     batch_timing: &mut BatchExecutionTiming,
     log_messages_bytes_limit: Option<usize>,
+    pre_accounts_program_ids: Option<&HashSet<Pubkey>>,
     prioritization_fee_cache: Option<&PrioritizationFeeCache>,
 ) -> Result<()> {
     // accumulator for entries that can be processed in parallel
@@ -727,6 +757,7 @@ fn process_entries(
                             replay_vote_sender,
                             batch_timing,
                             log_messages_bytes_limit,
+                            pre_accounts_program_ids,
                             prioritization_fee_cache,
                         )
                     },
@@ -742,6 +773,7 @@ fn process_entries(
         replay_vote_sender,
         batch_timing,
         log_messages_bytes_limit,
+        pre_accounts_program_ids,
         prioritization_fee_cache,
     )?;
     for hash in tick_hashes {
@@ -887,6 +919,7 @@ pub struct ProcessOptions {
     pub hash_overrides: Option<HashOverrides>,
     pub abort_on_invalid_block: bool,
     pub no_block_cost_limits: bool,
+    pub pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
 }
 
 pub fn test_process_blockstore(
@@ -1175,6 +1208,7 @@ fn confirm_full_slot(
         replay_vote_sender,
         opts.allow_dead_slots,
         opts.runtime_config.log_messages_bytes_limit,
+        opts.pre_accounts_program_ids.as_deref(),
         None,
         migration_status,
     )?;
@@ -1694,6 +1728,7 @@ pub fn confirm_slot(
     replay_vote_sender: Option<&ReplayVoteSender>,
     allow_dead_slots: bool,
     log_messages_bytes_limit: Option<usize>,
+    pre_accounts_program_ids: Option<&HashSet<Pubkey>>,
     prioritization_fee_cache: Option<&PrioritizationFeeCache>,
     migration_status: &MigrationStatus,
 ) -> result::Result<(), BlockstoreProcessorError> {
@@ -1724,6 +1759,7 @@ pub fn confirm_slot(
         entry_notification_sender,
         replay_vote_sender,
         log_messages_bytes_limit,
+        pre_accounts_program_ids,
         prioritization_fee_cache,
         migration_status,
     )
@@ -1742,6 +1778,7 @@ fn confirm_slot_entries(
     entry_notification_sender: Option<&EntryNotifierSender>,
     replay_vote_sender: Option<&ReplayVoteSender>,
     log_messages_bytes_limit: Option<usize>,
+    pre_accounts_program_ids: Option<&HashSet<Pubkey>>,
     prioritization_fee_cache: Option<&PrioritizationFeeCache>,
     migration_status: &MigrationStatus,
 ) -> result::Result<(), BlockstoreProcessorError> {
@@ -1965,6 +2002,7 @@ fn confirm_slot_entries(
         replay_vote_sender,
         batch_execute_timing,
         log_messages_bytes_limit,
+        pre_accounts_program_ids,
         prioritization_fee_cache,
     )
     .map_err(BlockstoreProcessorError::from);
@@ -2552,6 +2590,7 @@ pub struct TransactionStatusBatch {
     pub token_balances: TransactionTokenBalancesSet,
     pub costs: Vec<Option<u64>>,
     pub transaction_indexes: Vec<usize>,
+    pub pre_accounts: Vec<Vec<(Pubkey, Vec<u8>)>>,
 }
 
 #[derive(Clone, Debug)]
@@ -2570,6 +2609,7 @@ impl TransactionStatusSender {
         token_balances: TransactionTokenBalancesSet,
         costs: Vec<Option<u64>>,
         transaction_indexes: Vec<usize>,
+        pre_accounts: Vec<Vec<(Pubkey, Vec<u8>)>>,
     ) {
         let work_sequence = self
             .dependency_tracker
@@ -2585,6 +2625,7 @@ impl TransactionStatusSender {
                 token_balances,
                 costs,
                 transaction_indexes,
+                pre_accounts,
             },
             work_sequence,
         ))) {
@@ -4763,7 +4804,7 @@ pub mod tests {
         );
         let txs = vec![account_not_found_tx, invalid_blockhash_tx];
         let batch = bank.prepare_batch_for_tests(txs);
-        let (commit_results, _) = batch.bank().load_execute_and_commit_transactions(
+        let (commit_results, ..) = batch.bank().load_execute_and_commit_transactions(
             &batch,
             MAX_PROCESSING_AGE,
             ExecutionRecordingConfig::new_single_setting(false),
@@ -5162,8 +5203,10 @@ pub mod tests {
             None,
             None,
             None,
+            None,
             &MigrationStatus::default(),
-        )?;
+        )
+        ?;
         progress.wait_for_all_verification_results(&mut 0, &mut 0)
     }
 
@@ -5257,6 +5300,7 @@ pub mod tests {
             None,
             None,
             None,
+            None,
             &MigrationStatus::default(),
         )
         .unwrap();
@@ -5301,6 +5345,7 @@ pub mod tests {
             &mut progress,
             false,
             Some(&transaction_status_sender),
+            None,
             None,
             None,
             None,
@@ -5460,6 +5505,7 @@ pub mod tests {
             &mut batch_execution_timing,
             None,
             None,
+            None,
         );
         if should_succeed {
             assert_matches!(result, Ok(()));
@@ -5560,6 +5606,7 @@ pub mod tests {
             None,
             ReplayVoteSendType::VerifiedExecuted,
             &mut timing,
+            None,
             None,
             None,
             Some(|processing_result: &'_ Result<_>| {

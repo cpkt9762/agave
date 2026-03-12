@@ -87,7 +87,6 @@ use {
     tokio::sync::mpsc,
     tokio_util::sync::CancellationToken,
 };
-
 pub struct TpuSockets {
     pub vote: Vec<UdpSocket>,
     pub broadcast: Vec<UdpSocket>,
@@ -152,6 +151,7 @@ impl Tpu {
         replay_vote_sender: ReplayVoteSender,
         bank_notification_sender: Option<BankNotificationSenderConfig>,
         duplicate_confirmed_slot_sender: DuplicateConfirmedSlotsSender,
+        pre_accounts_program_ids: Option<Arc<std::collections::HashSet<Pubkey>>>,
         tpu_forwaring_client_config: ForwardingClientConfig,
         keypair: &Keypair,
         log_messages_bytes_limit: Option<usize>,
@@ -426,6 +426,7 @@ impl Tpu {
             transaction_status_sender.clone(),
             replay_vote_sender.clone(),
             log_messages_bytes_limit,
+            pre_accounts_program_ids,
             bank_forks.clone(),
             prioritization_fee_cache.clone(),
             blacklisted_accounts.clone(),

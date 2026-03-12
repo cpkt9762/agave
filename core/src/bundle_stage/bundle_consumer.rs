@@ -355,6 +355,7 @@ impl BundleConsumer {
                     ),
                     drop_on_failure: flags.drop_on_failure,
                     all_or_nothing: flags.all_or_nothing,
+                    pre_accounts_program_ids: None,
                 }
             ));
         execute_and_commit_timings.load_execute_us = load_execute_us;
@@ -363,6 +364,7 @@ impl BundleConsumer {
             processing_results,
             processed_counts,
             balance_collector,
+            pre_accounts_collector,
         } = load_and_execute_transactions_output;
 
         // BundleStage: all transactions must execute successfully to be committed
@@ -492,6 +494,7 @@ impl BundleConsumer {
                     starting_transaction_index,
                     bank,
                     balance_collector,
+                    pre_accounts_collector,
                     &mut execute_and_commit_timings,
                     &processed_counts,
                 )

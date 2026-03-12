@@ -16,6 +16,7 @@ use {
     },
     solana_runtime_transaction::transaction_with_meta::TransactionWithMeta,
     solana_svm::{
+        pre_accounts_collector::PreAccountsCollector,
         transaction_balances::BalanceCollector,
         transaction_commit_result::{TransactionCommitResult, TransactionCommitResultExtensions},
         transaction_processing_result::TransactionProcessingResult,
@@ -66,6 +67,7 @@ impl Committer {
         starting_transaction_index: Option<usize>,
         bank: &Bank,
         balance_collector: Option<BalanceCollector>,
+        pre_accounts_collector: Option<PreAccountsCollector>,
         execute_and_commit_timings: &mut LeaderExecuteAndCommitTimings,
         processed_counts: &ProcessedTransactionCounts,
     ) -> (u64, Vec<CommitTransactionDetails>) {
@@ -116,6 +118,7 @@ impl Committer {
                 bank,
                 batch,
                 balance_collector,
+                pre_accounts_collector,
                 starting_transaction_index,
             );
         });
@@ -129,6 +132,7 @@ impl Committer {
         bank: &Bank,
         batch: &TransactionBatch<impl TransactionWithMeta>,
         balance_collector: Option<BalanceCollector>,
+        pre_accounts_collector: Option<PreAccountsCollector>,
         starting_transaction_index: Option<usize>,
     ) {
         if let Some(transaction_status_sender) = &self.transaction_status_sender {
@@ -177,6 +181,9 @@ impl Committer {
 
             let (balances, token_balances) =
                 compile_collected_balances(balance_collector.unwrap_or_default());
+            let pre_accounts = pre_accounts_collector
+                .map(|collector| collector.into_vecs())
+                .unwrap_or_default();
 
             transaction_status_sender.send_transaction_status_batch(
                 bank.slot(),
@@ -186,6 +193,7 @@ impl Committer {
                 token_balances,
                 tx_costs,
                 batch_transaction_indexes,
+                pre_accounts,
             );
         }
     }

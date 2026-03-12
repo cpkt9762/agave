@@ -1300,6 +1300,7 @@ impl TaskHandler for DefaultTaskHandler {
             },
             timings,
             handler_context.log_messages_bytes_limit,
+            None,
             handler_context.prioritization_fee_cache.as_deref(),
             pre_commit_callback,
         );

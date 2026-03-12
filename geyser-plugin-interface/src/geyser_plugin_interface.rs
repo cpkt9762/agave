@@ -5,6 +5,7 @@
 use {
     solana_clock::{Slot, UnixTimestamp},
     solana_hash::Hash,
+    solana_pubkey::Pubkey,
     solana_signature::Signature,
     solana_transaction::{sanitized::SanitizedTransaction, versioned::VersionedTransaction},
     solana_transaction_status::{Reward, RewardsAndNumPartitions, TransactionStatusMeta},
@@ -180,6 +181,33 @@ pub struct ReplicaTransactionInfoV3<'a> {
     pub index: usize,
 }
 
+/// Information about a transaction, including index in block and pre-execution account data
+#[derive(Clone, Debug)]
+#[repr(C)]
+pub struct ReplicaTransactionInfoV4<'a> {
+    /// The transaction signature, used for identifying the transaction.
+    pub signature: &'a Signature,
+
+    /// The transaction message hash, used for identifying the transaction.
+    pub message_hash: &'a Hash,
+
+    /// Indicates if the transaction is a simple vote transaction.
+    pub is_vote: bool,
+
+    /// The versioned transaction.
+    pub transaction: &'a VersionedTransaction,
+
+    /// Metadata of the transaction status.
+    pub transaction_status_meta: &'a TransactionStatusMeta,
+
+    /// The transaction's index in the block
+    pub index: usize,
+
+    /// Pre-execution account data for writable non-program accounts,
+    /// filtered by configured program IDs.
+    pub pre_accounts_data: &'a [(Pubkey, Vec<u8>)],
+}
+
 /// A wrapper to future-proof ReplicaTransactionInfo handling.
 /// If there were a change to the structure of ReplicaTransactionInfo,
 /// there would be new enum entry for the newer version, forcing
@@ -189,6 +217,7 @@ pub enum ReplicaTransactionInfoVersions<'a> {
     V0_0_1(&'a ReplicaTransactionInfo<'a>),
     V0_0_2(&'a ReplicaTransactionInfoV2<'a>),
     V0_0_3(&'a ReplicaTransactionInfoV3<'a>),
+    V0_0_4(&'a ReplicaTransactionInfoV4<'a>),
 }
 
 #[derive(Clone, Debug)]
@@ -499,5 +528,12 @@ pub trait GeyserPlugin: Any + Send + Sync + std::fmt::Debug {
     /// entry data, return true.
     fn entry_notifications_enabled(&self) -> bool {
         false
+    }
+
+    /// Returns the set of program IDs for which pre-execution account data
+    /// should be captured. An empty Vec means no pre-accounts capture.
+    /// Default is empty -- plugins must override to opt in.
+    fn pre_accounts_program_ids(&self) -> Vec<Pubkey> {
+        vec![]
     }
 }

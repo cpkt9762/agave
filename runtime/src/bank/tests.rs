@@ -4835,18 +4835,20 @@ fn test_pre_post_transaction_balances() {
     let txs = vec![tx0, tx1, tx2];
 
     let lock_result = bank0.prepare_batch_for_tests(txs);
-    let (commit_results, balance_collector) = bank0.load_execute_and_commit_transactions(
-        &lock_result,
-        MAX_PROCESSING_AGE,
-        ExecutionRecordingConfig {
-            enable_cpi_recording: false,
-            enable_log_recording: false,
-            enable_return_data_recording: false,
-            enable_transaction_balance_recording: true,
-        },
-        &mut ExecuteTimings::default(),
-        None,
-    );
+    let (commit_results, balance_collector, _pre_accounts_collector) = bank0
+        .load_execute_and_commit_transactions(
+            &lock_result,
+            MAX_PROCESSING_AGE,
+            ExecutionRecordingConfig {
+                enable_cpi_recording: false,
+                enable_log_recording: false,
+                enable_return_data_recording: false,
+                enable_transaction_balance_recording: true,
+                enable_pre_accounts_recording: false,
+            },
+            &mut ExecuteTimings::default(),
+            None,
+        );
 
     let (native_pre, native_post, _, _) = balance_collector.unwrap().into_vecs();
     let transaction_balances_set = TransactionBalancesSet::new(native_pre, native_post);
@@ -8489,6 +8491,7 @@ fn test_tx_log_order(relax_intrabatch_account_locks: bool) {
                 enable_log_recording: true,
                 enable_return_data_recording: false,
                 enable_transaction_balance_recording: false,
+                enable_pre_accounts_recording: false,
             },
             &mut ExecuteTimings::default(),
             None,
@@ -8605,6 +8608,7 @@ fn test_tx_return_data() {
                     enable_log_recording: false,
                     enable_return_data_recording: true,
                     enable_transaction_balance_recording: false,
+                    enable_pre_accounts_recording: false,
                 },
                 &mut ExecuteTimings::default(),
                 None,

@@ -874,6 +874,7 @@ impl BankingSimulator {
             None,
             replay_vote_sender,
             None,
+            None,
             bank_forks.clone(),
             None,
             collections::HashSet::default(),

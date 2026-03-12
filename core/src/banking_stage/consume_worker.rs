@@ -2488,7 +2488,7 @@ mod tests {
 
         let (replay_vote_sender, replay_vote_receiver) = unbounded();
         let committer = Committer::new(None, replay_vote_sender, None);
-        let consumer = Consumer::new(committer, recorder, QosService::new(1), None);
+        let consumer = Consumer::new(committer, recorder, QosService::new(1), None, None);
         let shared_leader_state = SharedLeaderState::new(0, None, None);
 
         let cluster_info = {

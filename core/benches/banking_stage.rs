@@ -253,6 +253,7 @@ fn bench_banking(
         None,
         s,
         None,
+        None,
         bank_forks,
         None,
         HashSet::default(),
