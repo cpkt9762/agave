@@ -216,6 +216,7 @@ struct ProcessActiveBanksContext {
     block_metadata_notifier: Option<BlockMetadataNotifierArc>,
     votor_event_sender: VotorEventSender,
     log_messages_bytes_limit: Option<usize>,
+    pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
     replay_mode: ForkReplayMode,
     replay_tx_thread_pool: ThreadPool,
     prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
@@ -255,6 +256,7 @@ impl ProcessActiveBanksContext {
             block_metadata_notifier: None,
             votor_event_sender,
             log_messages_bytes_limit: None,
+            pre_accounts_program_ids: None,
             replay_mode: ForkReplayMode::Serial,
             replay_tx_thread_pool,
             prioritization_fee_cache: None,
@@ -371,6 +373,7 @@ pub struct ReplayStageConfig {
     pub vote_tracker: Arc<VoteTracker>,
     pub cluster_slots: Arc<ClusterSlots>,
     pub log_messages_bytes_limit: Option<usize>,
+    pub pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
     pub prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
     pub banking_tracer: Arc<BankingTracer>,
     pub snapshot_controller: Option<Arc<SnapshotController>>,
@@ -682,6 +685,7 @@ impl ReplayStage {
             vote_tracker,
             cluster_slots,
             log_messages_bytes_limit,
+            pre_accounts_program_ids,
             prioritization_fee_cache,
             banking_tracer,
             snapshot_controller,
@@ -840,6 +844,7 @@ impl ReplayStage {
                 block_metadata_notifier: block_metadata_notifier.clone(),
                 votor_event_sender: votor_event_sender.clone(),
                 log_messages_bytes_limit,
+                pre_accounts_program_ids,
                 replay_mode,
                 replay_tx_thread_pool,
                 prioritization_fee_cache: prioritization_fee_cache.clone(),
@@ -2576,6 +2581,9 @@ impl ReplayStage {
             Some(finalization_cert_sender),
             false,
             process_active_banks_context.log_messages_bytes_limit,
+            process_active_banks_context
+                .pre_accounts_program_ids
+                .as_deref(),
             process_active_banks_context
                 .prioritization_fee_cache
                 .as_deref(),

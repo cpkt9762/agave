@@ -5,7 +5,9 @@ use {
     jsonrpc_core::{ErrorCode, Result as JsonRpcResult},
     libloading::Library,
     log::*,
+    solana_pubkey::Pubkey,
     std::{
+        collections::HashSet,
         ops::{Deref, DerefMut},
         path::Path,
         sync::Arc,
@@ -131,6 +133,13 @@ impl GeyserPluginManager {
             }
         }
         false
+    }
+
+    pub fn pre_accounts_program_ids(&self) -> HashSet<Pubkey> {
+        self.plugins
+            .iter()
+            .flat_map(|plugin| plugin.pre_accounts_program_ids())
+            .collect()
     }
 
     /// Admin RPC request handler

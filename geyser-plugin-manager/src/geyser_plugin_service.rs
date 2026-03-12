@@ -18,12 +18,14 @@ use {
         deshred_transaction_notifier_interface::DeshredTransactionNotifierArc,
         entry_notifier_interface::EntryNotifierArc,
     },
+    solana_pubkey::Pubkey,
     solana_rpc::{
         optimistically_confirmed_bank_tracker::SlotNotification,
         slot_status_notifier::SlotStatusNotifier,
         transaction_notifier_interface::TransactionNotifierArc,
     },
     std::{
+        collections::HashSet,
         path::{Path, PathBuf},
         sync::{
             Arc, RwLock,
@@ -222,6 +224,13 @@ impl GeyserPluginService {
 
     pub fn get_slot_status_notifier(&self) -> Option<SlotStatusNotifier> {
         self.slot_status_notifier.clone()
+    }
+
+    pub fn get_pre_accounts_program_ids(&self) -> HashSet<Pubkey> {
+        self.plugin_manager
+            .read()
+            .unwrap()
+            .pre_accounts_program_ids()
     }
 
     pub fn join(self) -> thread::Result<()> {

@@ -254,6 +254,7 @@ fn svm_concurrent() {
                     enable_return_data_recording: false,
                     enable_cpi_recording: false,
                     enable_transaction_balance_recording: false,
+                    enable_pre_accounts_recording: false,
                 },
                 ..Default::default()
             };

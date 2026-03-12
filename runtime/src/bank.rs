@@ -152,6 +152,7 @@ use {
     solana_svm::{
         account_loader::LoadedTransaction,
         account_overrides::AccountOverrides,
+        pre_accounts_collector::PreAccountsCollector,
         program_loader::load_program_with_pubkey,
         rollback_accounts::RollbackAccounts,
         transaction_balances::{BalanceCollector, SvmTokenInfo},
@@ -351,6 +352,7 @@ pub struct LoadAndExecuteTransactionsOutput {
     // Balances accumulated for TransactionStatusSender when transaction
     // balance recording is enabled.
     pub balance_collector: Option<BalanceCollector>,
+    pub pre_accounts_collector: Option<PreAccountsCollector>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -3449,10 +3451,12 @@ impl Bank {
                     enable_log_recording: true,
                     enable_return_data_recording: true,
                     enable_transaction_balance_recording: true,
+                    enable_pre_accounts_recording: false,
                 },
                 drop_on_failure: false,
                 all_or_nothing: false,
                 strict_nonce_size_check: false,
+                pre_accounts_program_ids: None,
             },
         );
 
@@ -3624,10 +3628,12 @@ impl Bank {
                         enable_log_recording: true,
                         enable_return_data_recording: true,
                         enable_transaction_balance_recording: true,
+                        enable_pre_accounts_recording: false,
                     },
                     drop_on_failure: true,
                     all_or_nothing: true,
                     strict_nonce_size_check: false,
+                    pre_accounts_program_ids: None,
                 },
                 &mut program_cache_for_tx_batch,
                 false,
@@ -3993,6 +3999,7 @@ impl Bank {
             processing_results: sanitized_output.processing_results,
             processed_counts,
             balance_collector: sanitized_output.balance_collector,
+            pre_accounts_collector: sanitized_output.pre_accounts_collector,
         }
     }
 
@@ -4412,12 +4419,17 @@ impl Bank {
         recording_config: ExecutionRecordingConfig,
         timings: &mut ExecuteTimings,
         log_messages_bytes_limit: Option<usize>,
-    ) -> (Vec<TransactionCommitResult>, Option<BalanceCollector>) {
+    ) -> (
+        Vec<TransactionCommitResult>,
+        Option<BalanceCollector>,
+        Option<PreAccountsCollector>,
+    ) {
         self.do_load_execute_and_commit_transactions_with_pre_commit_callback(
             batch,
             recording_config,
             timings,
             log_messages_bytes_limit,
+            None,
             None::<fn(&mut _, &_) -> _>,
         )
         .unwrap()
@@ -4433,12 +4445,45 @@ impl Bank {
             &mut ExecuteTimings,
             &[TransactionProcessingResult],
         ) -> PreCommitResult<'a>,
-    ) -> Result<(Vec<TransactionCommitResult>, Option<BalanceCollector>)> {
+    ) -> Result<(
+        Vec<TransactionCommitResult>,
+        Option<BalanceCollector>,
+        Option<PreAccountsCollector>,
+    )> {
         self.do_load_execute_and_commit_transactions_with_pre_commit_callback(
             batch,
             recording_config,
             timings,
             log_messages_bytes_limit,
+            None,
+            Some(pre_commit_callback),
+        )
+    }
+
+    pub fn load_execute_and_commit_transactions_with_pre_commit_callback_and_pre_accounts<'a>(
+        &'a self,
+        batch: &TransactionBatch<impl TransactionWithMeta>,
+        max_age: usize,
+        recording_config: ExecutionRecordingConfig,
+        timings: &mut ExecuteTimings,
+        log_messages_bytes_limit: Option<usize>,
+        pre_accounts_program_ids: Option<&HashSet<Pubkey>>,
+        pre_commit_callback: impl FnOnce(
+            &mut ExecuteTimings,
+            &[TransactionProcessingResult],
+        ) -> PreCommitResult<'a>,
+    ) -> Result<(
+        Vec<TransactionCommitResult>,
+        Option<BalanceCollector>,
+        Option<PreAccountsCollector>,
+    )> {
+        self.do_load_execute_and_commit_transactions_with_pre_commit_callback(
+            batch,
+            max_age,
+            recording_config,
+            timings,
+            log_messages_bytes_limit,
+            pre_accounts_program_ids,
             Some(pre_commit_callback),
         )
     }
@@ -4449,14 +4494,20 @@ impl Bank {
         recording_config: ExecutionRecordingConfig,
         timings: &mut ExecuteTimings,
         log_messages_bytes_limit: Option<usize>,
+        pre_accounts_program_ids: Option<&HashSet<Pubkey>>,
         pre_commit_callback: Option<
             impl FnOnce(&mut ExecuteTimings, &[TransactionProcessingResult]) -> PreCommitResult<'a>,
         >,
-    ) -> Result<(Vec<TransactionCommitResult>, Option<BalanceCollector>)> {
+    ) -> Result<(
+        Vec<TransactionCommitResult>,
+        Option<BalanceCollector>,
+        Option<PreAccountsCollector>,
+    )> {
         let LoadAndExecuteTransactionsOutput {
             processing_results,
             processed_counts,
             balance_collector,
+            pre_accounts_collector,
         } = self.load_and_execute_transactions(
             batch,
             self.max_processing_age(),
@@ -4471,6 +4522,7 @@ impl Bank {
                 drop_on_failure: false,
                 all_or_nothing: false,
                 strict_nonce_size_check: false,
+                pre_accounts_program_ids,
             },
         );
 
@@ -4490,7 +4542,7 @@ impl Bank {
             timings,
         );
         drop(freeze_lock);
-        Ok((commit_results, balance_collector))
+        Ok((commit_results, balance_collector, pre_accounts_collector))
     }
 
     /// Process a Transaction. This is used for unit tests and simply calls the vector
@@ -4515,6 +4567,7 @@ impl Bank {
                 enable_log_recording: true,
                 enable_return_data_recording: true,
                 enable_transaction_balance_recording: false,
+                enable_pre_accounts_recording: false,
             },
             &mut ExecuteTimings::default(),
             Some(1000 * 1000),

@@ -2,12 +2,14 @@
 use {
     crate::geyser_plugin_manager::GeyserPluginManager,
     agave_geyser_plugin_interface::geyser_plugin_interface::{
-        ReplicaTransactionInfoV3, ReplicaTransactionInfoVersions,
+        ReplicaTransactionInfoV4, ReplicaTransactionInfoVersions,
     },
     arc_swap::ArcSwap,
     log::*,
     solana_clock::Slot,
     solana_hash::Hash,
+    solana_pubkey::Pubkey,
+    solana_pubkey::Pubkey,
     solana_rpc::transaction_notifier_interface::TransactionNotifier,
     solana_signature::Signature,
     solana_transaction::versioned::VersionedTransaction,
@@ -33,6 +35,7 @@ impl TransactionNotifier for TransactionNotifierImpl {
         is_vote: bool,
         transaction_status_meta: &TransactionStatusMeta,
         transaction: &VersionedTransaction,
+        pre_accounts_data: &[(Pubkey, Vec<u8>)],
     ) {
         let transaction_log_info = Self::build_replica_transaction_info(
             index,
@@ -41,6 +44,7 @@ impl TransactionNotifier for TransactionNotifierImpl {
             is_vote,
             transaction_status_meta,
             transaction,
+            pre_accounts_data,
         );
 
         let plugin_manager = self.plugin_manager.load();
@@ -54,7 +58,7 @@ impl TransactionNotifier for TransactionNotifierImpl {
                 continue;
             }
             match plugin.notify_transaction(
-                ReplicaTransactionInfoVersions::V0_0_3(&transaction_log_info),
+                ReplicaTransactionInfoVersions::V0_0_4(&transaction_log_info),
                 slot,
             ) {
                 Err(err) => {
@@ -87,14 +91,16 @@ impl TransactionNotifierImpl {
         is_vote: bool,
         transaction_status_meta: &'a TransactionStatusMeta,
         transaction: &'a VersionedTransaction,
-    ) -> ReplicaTransactionInfoV3<'a> {
-        ReplicaTransactionInfoV3 {
+        pre_accounts_data: &'a [(Pubkey, Vec<u8>)],
+    ) -> ReplicaTransactionInfoV4<'a> {
+        ReplicaTransactionInfoV4 {
             index,
             message_hash,
             signature,
             is_vote,
             transaction,
             transaction_status_meta,
+            pre_accounts_data,
         }
     }
 }

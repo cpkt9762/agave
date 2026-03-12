@@ -618,6 +618,7 @@ strip = false
 split-debuginfo = "off"
 
 [profile.release]
+codegen-units = 1
 split-debuginfo = "unpacked"
 lto = "thin"
 

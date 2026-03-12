@@ -8,6 +8,7 @@ use {
         account_overrides::AccountOverrides,
         message_processor::process_message,
         nonce_info::NonceInfo,
+        pre_accounts_collector::{PreAccountsCollectionRoutines, PreAccountsCollector},
         program_loader::{get_program_deployment_slot, load_program_with_pubkey},
         rollback_accounts::RollbackAccounts,
         transaction_account_state_info::{
@@ -89,6 +90,7 @@ pub struct LoadAndExecuteSanitizedTransactionsOutput {
     /// Balances accumulated for TransactionStatusSender when
     /// transaction balance recording is enabled.
     pub balance_collector: Option<BalanceCollector>,
+    pub pre_accounts_collector: Option<PreAccountsCollector>,
 }
 
 /// Configuration of the recording capabilities for transaction execution
@@ -98,6 +100,7 @@ pub struct ExecutionRecordingConfig {
     pub enable_log_recording: bool,
     pub enable_return_data_recording: bool,
     pub enable_transaction_balance_recording: bool,
+    pub enable_pre_accounts_recording: bool,
 }
 
 impl ExecutionRecordingConfig {
@@ -107,6 +110,7 @@ impl ExecutionRecordingConfig {
             enable_log_recording: option,
             enable_cpi_recording: option,
             enable_transaction_balance_recording: option,
+            enable_pre_accounts_recording: option,
         }
     }
 }
@@ -143,6 +147,8 @@ pub struct TransactionProcessingConfig<'a> {
     ///
     /// This is a leader-side filtering policy. It must not be enabled for replay.
     pub strict_nonce_size_check: bool,
+
+    pub pre_accounts_program_ids: Option<&'a HashSet<Pubkey>>,
 }
 
 /// Runtime environment for transaction batch processing.
@@ -469,6 +475,12 @@ impl<FG: ForkGraph> TransactionBatchProcessor<FG> {
             .enable_transaction_balance_recording
             .then(|| BalanceCollector::new_with_transaction_count(sanitized_txs.len()));
 
+        let pre_accounts_program_ids = config.pre_accounts_program_ids;
+        let mut pre_accounts_collector = (config.recording_config.enable_pre_accounts_recording
+            && pre_accounts_program_ids.is_some())
+            .then(|| PreAccountsCollector::new_with_transaction_count(sanitized_txs.len()));
+
+
         if program_cache_for_tx_batch.hit_max_limit {
             return LoadAndExecuteSanitizedTransactionsOutput {
                 error_metrics,
@@ -479,6 +491,7 @@ impl<FG: ForkGraph> TransactionBatchProcessor<FG> {
                 // If we abort the batch and balance recording is enabled, no balances should be
                 // collected. If this is a leader thread, no batch will be committed.
                 balance_collector: None,
+                pre_accounts_collector: None,
             };
         }
 
@@ -518,6 +531,12 @@ impl<FG: ForkGraph> TransactionBatchProcessor<FG> {
                 measure_us!(balance_collector.collect_pre_balances(&mut account_loader, tx));
             execute_timings
                 .saturating_add_in_place(ExecuteTimingType::CollectBalancesUs, collect_balances_us);
+
+            if let (Some(ref mut collector), Some(program_ids)) =
+                (&mut pre_accounts_collector, pre_accounts_program_ids)
+            {
+                collector.collect_pre_accounts(&mut account_loader, tx, program_ids);
+            }
 
             let (processing_result, single_execution_us) = measure_us!(match load_result {
                 TransactionLoadResult::NotLoaded(err) => Err(err),
@@ -588,6 +607,7 @@ impl<FG: ForkGraph> TransactionBatchProcessor<FG> {
                             // If we abort the batch and balance recording is enabled, no balances should be
                             // collected. If this is a leader thread, no batch will be committed.
                             balance_collector: None,
+                            pre_accounts_collector: None,
                         };
                     }
 
@@ -667,6 +687,7 @@ impl<FG: ForkGraph> TransactionBatchProcessor<FG> {
                     // If we abort the batch and balance recording is enabled, no balances should be
                     // collected. If this is a leader thread, no batch will be committed.
                     balance_collector: None,
+                    pre_accounts_collector: None,
                 };
             }
 
@@ -704,11 +725,16 @@ impl<FG: ForkGraph> TransactionBatchProcessor<FG> {
             debug_assert!(balance_collector.lengths_match_expected(sanitized_txs.len()));
         }
 
+        if let Some(ref pre_accounts_collector) = pre_accounts_collector {
+            debug_assert!(pre_accounts_collector.lengths_match_expected(sanitized_txs.len()));
+        }
+
         LoadAndExecuteSanitizedTransactionsOutput {
             error_metrics,
             execute_timings,
             processing_results,
             balance_collector,
+            pre_accounts_collector,
         }
     }
 

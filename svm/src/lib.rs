@@ -6,6 +6,7 @@ pub mod account_loader;
 pub mod account_overrides;
 pub mod message_processor;
 pub mod nonce_info;
+pub mod pre_accounts_collector;
 pub mod program_loader;
 pub mod rent_calculator;
 pub mod rollback_accounts;

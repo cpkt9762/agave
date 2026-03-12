@@ -138,6 +138,7 @@ impl TransactionStatusService {
                     token_balances,
                     costs,
                     transaction_indexes,
+                    pre_accounts,
                 },
                 work_id,
             )) => {
@@ -156,6 +157,7 @@ impl TransactionStatusService {
                     post_token_balances,
                     cost,
                     transaction_index,
+                    pre_accounts_data,
                 ) in izip!(
                     transactions,
                     commit_results,
@@ -165,6 +167,7 @@ impl TransactionStatusService {
                     token_balances.post_token_balances,
                     costs,
                     transaction_indexes,
+                    pre_accounts,
                 ) {
                     let Ok(committed_tx) = commit_result else {
                         continue;
@@ -218,6 +221,7 @@ impl TransactionStatusService {
                             is_vote,
                             &transaction_status_meta,
                             &transaction,
+                            &pre_accounts_data,
                         );
                     }
 
@@ -415,6 +419,7 @@ pub(crate) mod tests {
             _is_vote: bool,
             transaction_status_meta: &TransactionStatusMeta,
             transaction: &VersionedTransaction,
+            _pre_accounts_data: &[(Pubkey, Vec<u8>)],
         ) {
             self.notifications.insert(
                 TestNotifierKey {
@@ -526,6 +531,7 @@ pub(crate) mod tests {
             token_balances,
             costs: vec![Some(123)],
             transaction_indexes: vec![transaction_index],
+            pre_accounts: vec![vec![]],
         };
 
         let test_notifier = Arc::new(TestTransactionNotifier::new());
@@ -634,6 +640,7 @@ pub(crate) mod tests {
             token_balances,
             costs: vec![Some(123), Some(456)],
             transaction_indexes: vec![transaction_index1, transaction_index2],
+            pre_accounts: vec![vec![], vec![]],
         };
 
         let test_notifier = Arc::new(TestTransactionNotifier::new());
