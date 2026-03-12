@@ -828,6 +828,7 @@ impl BankingSimulator {
             None,
             replay_vote_sender,
             None,
+            None,
             bank_forks.clone(),
             agave_votor::slot_clock::SharedAlpenglowSlotClock::default(),
             None,

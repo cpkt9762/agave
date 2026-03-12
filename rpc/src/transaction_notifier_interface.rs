@@ -1,6 +1,7 @@
 use {
     solana_clock::{BankId, Slot},
     solana_hash::Hash,
+    solana_pubkey::Pubkey,
     solana_signature::Signature,
     solana_transaction::versioned::VersionedTransaction,
     solana_transaction_status::TransactionStatusMeta,
@@ -18,6 +19,7 @@ pub trait TransactionNotifier {
         is_vote: bool,
         transaction_status_meta: &TransactionStatusMeta,
         transaction: &VersionedTransaction,
+        pre_accounts_data: &[(Pubkey, Vec<u8>)],
     );
 }
 

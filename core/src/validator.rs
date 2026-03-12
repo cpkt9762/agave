@@ -895,6 +895,10 @@ impl Validator {
             } else {
                 None
             };
+        let pre_accounts_program_ids = geyser_plugin_service.as_ref().and_then(|service| {
+            let program_ids = service.get_pre_accounts_program_ids();
+            (!program_ids.is_empty()).then(|| Arc::new(program_ids))
+        });
 
         if config.voting_disabled {
             warn!("voting disabled");
@@ -1014,6 +1018,7 @@ impl Validator {
             accounts_update_notifier,
             transaction_notifier,
             entry_notifier,
+            pre_accounts_program_ids.clone(),
             config
                 .rpc_addrs
                 .is_some()
@@ -1850,6 +1855,7 @@ impl Validator {
             replay_vote_sender,
             bank_notification_sender_config,
             duplicate_confirmed_slot_sender,
+            pre_accounts_program_ids.clone(),
             tpu_forwarding_client_config,
             &identity_keypair,
             config.runtime_config.log_messages_bytes_limit,
@@ -2491,6 +2497,7 @@ fn load_blockstore(
     accounts_update_notifier: Option<AccountsUpdateNotifier>,
     transaction_notifier: Option<TransactionNotifierArc>,
     entry_notifier: Option<EntryNotifierArc>,
+    pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
     dependency_tracker: Option<Arc<DependencyTracker>>,
 ) -> Result<
     (
@@ -2522,6 +2529,7 @@ fn load_blockstore(
         accounts_db_force_initial_clean: config.accounts_db_force_initial_clean,
         runtime_config: config.runtime_config.clone(),
         use_snapshot_archives_at_startup: config.use_snapshot_archives_at_startup,
+        pre_accounts_program_ids,
         ..blockstore_processor::ProcessOptions::default()
     };
 

@@ -12,9 +12,11 @@ use {
     solana_clock::{BankId, Slot},
     solana_cost_model::{cost_model::CostModel, transaction_cost::TransactionCost},
     solana_measure::measure::Measure,
+    solana_pubkey::Pubkey,
     solana_runtime_transaction::transaction_with_meta::TransactionWithMeta,
     solana_signature::Signature,
     solana_svm::{
+        pre_accounts_collector::PreAccountsCollector,
         transaction_commit_result::{
             TransactionCommitResult, TransactionCommitResultExtensions as _,
         },
@@ -25,7 +27,7 @@ use {
     solana_transaction::sanitized::SanitizedTransaction,
     solana_transaction_error::{TransactionError, TransactionResult},
     solana_transaction_status::token_balances::TransactionTokenBalancesSet,
-    std::{borrow::Cow, sync::Arc},
+    std::{borrow::Cow, collections::HashSet, sync::Arc},
 };
 
 type WorkSequence = u64;
@@ -40,6 +42,7 @@ pub struct TransactionStatusBatch {
     pub token_balances: TransactionTokenBalancesSet,
     pub costs: Vec<Option<u64>>,
     pub transaction_indexes: Vec<usize>,
+    pub pre_accounts: Vec<Vec<(Pubkey, Vec<u8>)>>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -62,6 +65,7 @@ pub fn execute_batch<'a>(
     replay_vote_send_type: ReplayVoteSendType,
     timings: &'a mut ExecuteTimings,
     log_messages_bytes_limit: Option<usize>,
+    pre_accounts_program_ids: Option<&'a HashSet<Pubkey>>,
     prioritization_fee_cache: Option<&'a PrioritizationFeeCache>,
 ) -> TransactionResult<()> {
     let TransactionBatchWithIndexes {
@@ -76,13 +80,21 @@ pub fn execute_batch<'a>(
         get_first_error(batch, processing_results)
     };
 
-    let (commit_results, balance_collector) = batch
+    let execution_recording_config = ExecutionRecordingConfig {
+        enable_cpi_recording: transaction_status_sender.is_some(),
+        enable_log_recording: transaction_status_sender.is_some(),
+        enable_return_data_recording: transaction_status_sender.is_some(),
+        enable_transaction_balance_recording: transaction_status_sender.is_some(),
+        enable_pre_accounts_recording: pre_accounts_program_ids.is_some(),
+    };
+    let (commit_results, balance_collector, pre_accounts_collector) = batch
         .bank()
-        .load_execute_and_commit_transactions_with_pre_commit_callback(
+        .load_execute_and_commit_transactions_with_pre_commit_callback_and_pre_accounts(
             batch,
-            ExecutionRecordingConfig::new_single_setting(transaction_status_sender.is_some()),
+            execution_recording_config,
             timings,
             log_messages_bytes_limit,
+            pre_accounts_program_ids,
             pre_commit_callback,
         )?;
 
@@ -130,6 +142,16 @@ pub fn execute_batch<'a>(
 
         let (balances, token_balances) =
             compile_collected_balances(balance_collector.unwrap_or_default());
+        let mut pre_accounts = compile_pre_accounts(pre_accounts_collector);
+        // Ensure pre_accounts length matches transactions length.
+        // When pre_accounts_program_ids is None (e.g. unified scheduler path),
+        // compile_pre_accounts returns an empty vec. izip! takes the shortest
+        // iterator, so an empty pre_accounts would skip ALL transactions in
+        // TransactionStatusService::write_transaction_status_batch, preventing
+        // notify_transaction from ever being called.
+        if pre_accounts.len() != transactions.len() {
+            pre_accounts.resize_with(transactions.len(), Vec::new);
+        }
 
         // The length of costs vector needs to be consistent with all other
         // vectors that are sent over (such as `transactions`). So, replace the
@@ -148,10 +170,19 @@ pub fn execute_batch<'a>(
             token_balances,
             tx_costs,
             transaction_indexes.into_owned(),
+            pre_accounts,
         );
     }
 
     Ok(())
+}
+
+fn compile_pre_accounts(
+    pre_accounts_collector: Option<PreAccountsCollector>,
+) -> Vec<Vec<(Pubkey, Vec<u8>)>> {
+    pre_accounts_collector
+        .map(|collector| collector.into_vecs())
+        .unwrap_or_default()
 }
 
 fn check_block_cost_limits<Tx: TransactionWithMeta>(
@@ -245,6 +276,7 @@ impl TransactionStatusSender {
         token_balances: TransactionTokenBalancesSet,
         costs: Vec<Option<u64>>,
         transaction_indexes: Vec<usize>,
+        pre_accounts: Vec<Vec<(Pubkey, Vec<u8>)>>,
     ) {
         let work_sequence = self
             .dependency_tracker
@@ -261,6 +293,7 @@ impl TransactionStatusSender {
                 token_balances,
                 costs,
                 transaction_indexes,
+                pre_accounts,
             },
             work_sequence,
         ))) {
@@ -386,7 +419,7 @@ mod tests {
         );
         let txs = vec![already_processed_tx, invalid_blockhash_tx];
         let batch = bank.prepare_batch_for_tests(txs);
-        let (commit_results, _) = bank.load_execute_and_commit_transactions(
+        let (commit_results, ..) = bank.load_execute_and_commit_transactions(
             &batch,
             ExecutionRecordingConfig::new_single_setting(false),
             &mut ExecuteTimings::default(),
@@ -476,6 +509,7 @@ mod tests {
             &mut timing,
             None,
             None,
+            None,
         );
 
         assert_eq!(result, expected_tx_result);
@@ -529,7 +563,7 @@ mod tests {
             &bank.feature_set,
         );
 
-        let (commit_results, _) = bank.load_execute_and_commit_transactions(
+        let (commit_results, ..) = bank.load_execute_and_commit_transactions(
             &batch,
             ExecutionRecordingConfig::new_single_setting(false),
             &mut ExecuteTimings::default(),
@@ -551,7 +585,7 @@ mod tests {
 
         drop(batch);
 
-        let (commit_results, _) = bank.load_execute_and_commit_transactions(
+        let (commit_results, ..) = bank.load_execute_and_commit_transactions(
             &bank.prepare_batch_for_tests(vec![tx]),
             ExecutionRecordingConfig::new_single_setting(false),
             &mut ExecuteTimings::default(),

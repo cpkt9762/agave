@@ -13,6 +13,7 @@ use {
         poh_recorder::PohRecorderError,
         transaction_recorder::{RecordTransactionsTimings, TransactionRecorder},
     },
+    solana_pubkey::Pubkey,
     solana_runtime::{
         bank::{
             Bank, LoadAndExecuteTransactionsOutput, entry_bytes_budget::EntryBytesReserveError,
@@ -28,7 +29,7 @@ use {
     },
     solana_transaction_error::TransactionError,
     solana_vote::vote_parser,
-    std::num::Saturating,
+    std::{collections::HashSet, num::Saturating, sync::Arc},
 };
 
 /// Consumer will create chunks of transactions from buffer with up to this size.
@@ -109,6 +110,7 @@ pub struct Consumer {
     committer: Committer,
     transaction_recorder: TransactionRecorder,
     log_messages_bytes_limit: Option<usize>,
+    pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
 }
 
 impl Consumer {
@@ -116,11 +118,13 @@ impl Consumer {
         committer: Committer,
         transaction_recorder: TransactionRecorder,
         log_messages_bytes_limit: Option<usize>,
+        pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
     ) -> Self {
         Self {
             committer,
             transaction_recorder,
             log_messages_bytes_limit,
+            pre_accounts_program_ids,
         }
     }
 
@@ -446,13 +450,18 @@ impl Consumer {
                     check_program_deployment_slot: bank.check_program_deployment_slot(),
                     log_messages_bytes_limit: self.log_messages_bytes_limit,
                     limit_to_load_programs: true,
-                    recording_config: ExecutionRecordingConfig::new_single_setting(
-                        transaction_status_sender_enabled
-                    ),
+                    recording_config: ExecutionRecordingConfig {
+                        enable_cpi_recording: transaction_status_sender_enabled,
+                        enable_log_recording: transaction_status_sender_enabled,
+                        enable_return_data_recording: transaction_status_sender_enabled,
+                        enable_transaction_balance_recording: transaction_status_sender_enabled,
+                        enable_pre_accounts_recording: self.pre_accounts_program_ids.is_some(),
+                    },
                     drop_on_failure: flags.drop_on_failure,
                     all_or_nothing: flags.all_or_nothing,
                     strict_nonce_size_check: true,
                     drop_noop_transactions: true,
+                    pre_accounts_program_ids: self.pre_accounts_program_ids.as_deref(),
                 }
             ));
         execute_and_commit_timings.load_execute_us = load_execute_us;
@@ -488,6 +497,7 @@ impl Consumer {
             processing_results,
             processed_counts,
             balance_collector,
+            pre_accounts_collector,
         } = load_and_execute_transactions_output;
 
         let transaction_counts = LeaderProcessedTransactionCounts {
@@ -576,6 +586,7 @@ impl Consumer {
                     starting_transaction_index,
                     bank,
                     balance_collector,
+                    pre_accounts_collector,
                     &mut execute_and_commit_timings,
                     &processed_counts,
                 )
@@ -734,7 +745,7 @@ mod tests {
 
         let (replay_vote_sender, _replay_vote_receiver) = bounded(1024);
         let committer = Committer::new(transaction_status_sender, replay_vote_sender, None);
-        let consumer = Consumer::new(committer, recorder, None);
+        let consumer = Consumer::new(committer, recorder, None, None);
 
         TestFrame {
             mint_keypair,
@@ -759,7 +770,7 @@ mod tests {
 
         let (replay_vote_sender, _replay_vote_receiver) = bounded(1024);
         let committer = Committer::new(None, replay_vote_sender, None);
-        let consumer = Consumer::new(committer, recorder, None);
+        let consumer = Consumer::new(committer, recorder, None, None);
         consumer.process_and_record_transactions(
             &bank,
             &transactions,
@@ -1845,7 +1856,7 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let consumer = Consumer::new(committer, recorder.clone(), None);
+        let consumer = Consumer::new(committer, recorder.clone(), None, None);
 
         let process_transactions_summary = consumer.process_and_record_transactions(
             &bank,

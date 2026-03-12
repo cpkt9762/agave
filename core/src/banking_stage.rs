@@ -360,6 +360,7 @@ pub struct BankingStage {
     log_messages_bytes_limit: Option<usize>,
     filter_keys: Arc<HashSet<Pubkey>>,
     priority_floor: Arc<SchedulerPriorityFloor>,
+    pre_accounts_program_ids: Option<Arc<std::collections::HashSet<Pubkey>>>,
     threads: FuturesUnordered<NamedTask<std::thread::Result<()>>>,
     bundle_account_locker: BundleAccountLocker,
     tip_processing_dependencies: Option<TipProcessingDependencies>,
@@ -381,6 +382,7 @@ impl BankingStage {
         transaction_status_sender: Option<TransactionStatusSender>,
         replay_vote_sender: ReplayVoteSender,
         log_messages_bytes_limit: Option<usize>,
+        pre_accounts_program_ids: Option<Arc<std::collections::HashSet<Pubkey>>>,
         bank_forks: Arc<RwLock<BankForks>>,
         alpenglow_slot_clock: SharedAlpenglowSlotClock,
         prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
@@ -413,6 +415,7 @@ impl BankingStage {
             log_messages_bytes_limit,
             filter_keys,
             priority_floor,
+            pre_accounts_program_ids,
             threads: FuturesUnordered::default(),
             bundle_account_locker,
             tip_processing_dependencies,
@@ -592,6 +595,7 @@ impl BankingStage {
                     self.committer.clone(),
                     self.transaction_recorder.clone(),
                     self.log_messages_bytes_limit,
+                    self.pre_accounts_program_ids.clone(),
                 ),
                 finished_work_sender.clone(),
                 self.poh_recorder.read().unwrap().shared_leader_state(),
@@ -688,6 +692,7 @@ impl BankingStage {
                 self.committer.clone(),
                 self.transaction_recorder.clone(),
                 self.log_messages_bytes_limit,
+                self.pre_accounts_program_ids.clone(),
             );
             let mut worker_metrics = Vec::with_capacity(num_workers);
             for index in 0..num_workers {
@@ -779,6 +784,7 @@ impl BankingStage {
             self.committer.clone(),
             self.transaction_recorder.clone(),
             self.log_messages_bytes_limit,
+            self.pre_accounts_program_ids.clone(),
         );
         let migration_status = self.bank_forks.read().unwrap().migration_status();
         let decision_maker = DecisionMaker::new(
@@ -871,6 +877,7 @@ mod external {
                         self.committer.clone(),
                         self.transaction_recorder.clone(),
                         self.log_messages_bytes_limit,
+                        self.pre_accounts_program_ids.clone(),
                     ),
                     worker_to_pack,
                     allocator,
@@ -1100,6 +1107,7 @@ mod tests {
             None,
             replay_vote_sender,
             None,
+            None,
             bank_forks,
             SharedAlpenglowSlotClock::default(),
             None,
@@ -1169,6 +1177,7 @@ mod tests {
             },
             None,
             replay_vote_sender,
+            None,
             None,
             bank_forks,
             SharedAlpenglowSlotClock::default(),
@@ -1251,6 +1260,7 @@ mod tests {
             },
             None,
             replay_vote_sender,
+            None,
             None,
             bank_forks, // keep a local-copy of bank-forks so worker threads do not lose weak access to bank-forks
             SharedAlpenglowSlotClock::default(),
@@ -1407,6 +1417,7 @@ mod tests {
                 },
                 None,
                 replay_vote_sender,
+                None,
                 None,
                 bank_forks,
                 SharedAlpenglowSlotClock::default(),
@@ -1575,6 +1586,7 @@ mod tests {
             },
             None,
             replay_vote_sender,
+            None,
             None,
             bank_forks,
             SharedAlpenglowSlotClock::default(),

@@ -159,6 +159,7 @@ impl SvmTestEnvironment<'_> {
                 enable_return_data_recording: true,
                 enable_cpi_recording: false,
                 enable_transaction_balance_recording: false,
+                enable_pre_accounts_recording: false,
             },
             drop_on_failure: test_entry.drop_on_failure,
             all_or_nothing: test_entry.all_or_nothing,
