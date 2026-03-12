@@ -16,7 +16,7 @@ use {
     solana_runtime_transaction::transaction_with_meta::TransactionWithMeta,
     solana_signature::Signature,
     solana_svm::{
-        pre_accounts_collector::PreAccountsCollector,
+        pre_accounts_collector::{PreAccountEntry, PreAccountsCollector},
         transaction_commit_result::{
             TransactionCommitResult, TransactionCommitResultExtensions as _,
         },
@@ -42,7 +42,7 @@ pub struct TransactionStatusBatch {
     pub token_balances: TransactionTokenBalancesSet,
     pub costs: Vec<Option<u64>>,
     pub transaction_indexes: Vec<usize>,
-    pub pre_accounts: Vec<Vec<(Pubkey, Vec<u8>)>>,
+    pub pre_accounts: Vec<Vec<PreAccountEntry>>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -179,7 +179,7 @@ pub fn execute_batch<'a>(
 
 fn compile_pre_accounts(
     pre_accounts_collector: Option<PreAccountsCollector>,
-) -> Vec<Vec<(Pubkey, Vec<u8>)>> {
+) -> Vec<Vec<PreAccountEntry>> {
     pre_accounts_collector
         .map(|collector| collector.into_vecs())
         .unwrap_or_default()
@@ -276,7 +276,7 @@ impl TransactionStatusSender {
         token_balances: TransactionTokenBalancesSet,
         costs: Vec<Option<u64>>,
         transaction_indexes: Vec<usize>,
-        pre_accounts: Vec<Vec<(Pubkey, Vec<u8>)>>,
+        pre_accounts: Vec<Vec<PreAccountEntry>>,
     ) {
         let work_sequence = self
             .dependency_tracker

@@ -9,7 +9,18 @@ use {
     std::collections::HashSet,
 };
 
-type TxPreAccounts = Vec<(Pubkey, Vec<u8>)>;
+/// Pre-execution account state captured before SVM transaction execution.
+#[derive(Debug, Clone)]
+pub struct PreAccountEntry {
+    pub pubkey: Pubkey,
+    pub owner: Pubkey,
+    pub lamports: u64,
+    pub data: Vec<u8>,
+    pub executable: bool,
+    pub rent_epoch: u64,
+}
+
+type TxPreAccounts = Vec<PreAccountEntry>;
 type BatchPreAccounts = Vec<TxPreAccounts>;
 
 // Trait for operating cleanly over Option<PreAccountsCollector>
@@ -65,7 +76,14 @@ impl PreAccountsCollectionRoutines for PreAccountsCollector {
         for (index, key) in transaction.account_keys().iter().enumerate() {
             if transaction.is_writable(index) && !transaction.is_invoked(index) {
                 if let Some(account) = account_loader.load_account(key) {
-                    tx_pre_accounts.push((*key, account.data().to_vec()));
+                    tx_pre_accounts.push(PreAccountEntry {
+                        pubkey: *key,
+                        owner: *account.owner(),
+                        lamports: account.lamports(),
+                        data: account.data().to_vec(),
+                        executable: account.executable(),
+                        rent_epoch: account.rent_epoch(),
+                    });
                 }
             }
         }

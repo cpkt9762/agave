@@ -177,6 +177,7 @@ dependencies = [
  "solana-hash 4.6.0",
  "solana-message",
  "solana-signature",
+ "solana-svm",
  "solana-transaction",
  "solana-transaction-status",
  "thiserror 2.0.19",

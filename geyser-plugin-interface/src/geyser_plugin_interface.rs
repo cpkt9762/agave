@@ -14,6 +14,9 @@ use {
     std::{any::Any, error, io, net::SocketAddr},
     thiserror::Error,
 };
+
+pub use solana_svm::pre_accounts_collector::PreAccountEntry;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C)]
 /// Information about an account being updated
@@ -207,7 +210,7 @@ pub struct ReplicaTransactionInfoV4<'a> {
 
     /// Pre-execution account data for writable non-program accounts,
     /// filtered by configured program IDs.
-    pub pre_accounts_data: &'a [(Pubkey, Vec<u8>)],
+    pub pre_accounts_data: &'a [PreAccountEntry],
 }
 
 /// A wrapper to future-proof ReplicaTransactionInfo handling.
