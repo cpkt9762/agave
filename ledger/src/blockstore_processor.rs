@@ -715,7 +715,6 @@ pub fn process_entries_for_tests(
         None,
         None,
         None,
-        &MigrationStatus::default(),
     );
 
     debug!("process_entries: {batch_timing:?}");

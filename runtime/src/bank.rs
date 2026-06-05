@@ -4564,7 +4564,6 @@ impl Bank {
                 drop_on_failure: false,
                 all_or_nothing: false,
                 pre_accounts_program_ids,
-                pre_accounts_program_ids,
             },
         );
 
