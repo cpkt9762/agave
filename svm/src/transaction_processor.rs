@@ -532,7 +532,7 @@ impl<FG: ForkGraph> TransactionBatchProcessor<FG> {
             execute_timings
                 .saturating_add_in_place(ExecuteTimingType::CollectBalancesUs, collect_balances_us);
 
-            if let (Some(ref mut collector), Some(program_ids)) =
+            if let (Some(collector), Some(program_ids)) =
                 (&mut pre_accounts_collector, pre_accounts_program_ids)
             {
                 collector.collect_pre_accounts(&mut account_loader, tx, program_ids);

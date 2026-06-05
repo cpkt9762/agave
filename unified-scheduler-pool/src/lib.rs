@@ -14,6 +14,7 @@
 //! regarding to pooling and the actual use.
 
 use {
+    arc_swap::ArcSwap,
     assert_matches::assert_matches,
     crossbeam_channel::{
         self, Receiver, RecvError, RecvTimeoutError, SendError, Sender, never, select_biased,
@@ -45,6 +46,7 @@ use {
     },
     static_assertions::const_assert_eq,
     std::{
+        collections::HashSet,
         fmt::Debug,
         marker::PhantomData,
         mem,
