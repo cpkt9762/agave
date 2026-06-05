@@ -35,6 +35,7 @@ agave-reserved-account-keys = { workspace = true }
 agave-snapshots = { workspace = true }
 agave-votor-messages = { workspace = true }
 anyhow = { workspace = true }
+arc-swap = { workspace = true }
 assert_matches = { workspace = true }
 atomic-wait = { workspace = true }
 bitflags = { workspace = true }

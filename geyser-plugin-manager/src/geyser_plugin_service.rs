@@ -242,6 +242,12 @@ impl GeyserPluginService {
         self.plugin_manager.load().pre_accounts_program_ids()
     }
 
+    pub fn get_pre_accounts_program_ids_shared(
+        &self,
+    ) -> Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>> {
+        self.plugin_manager.load().pre_accounts_program_ids_shared()
+    }
+
     pub fn join(self) -> thread::Result<()> {
         if let Some(mut slot_status_observer) = self.slot_status_observer {
             slot_status_observer.join()?;

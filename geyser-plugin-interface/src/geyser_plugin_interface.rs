@@ -3,6 +3,7 @@
 //! In addition, the dynamic library must export a "C" function _create_plugin which
 //! creates the implementation of the plugin.
 use {
+    arc_swap::ArcSwap,
     solana_clock::{BankId, Slot, UnixTimestamp},
     solana_entry::block_component::VersionedBlockFooter,
     solana_hash::Hash,
@@ -11,7 +12,7 @@ use {
     solana_signature::Signature,
     solana_transaction::{sanitized::SanitizedTransaction, versioned::VersionedTransaction},
     solana_transaction_status::{Reward, RewardsAndNumPartitions, TransactionStatusMeta},
-    std::{any::Any, error, io, net::SocketAddr},
+    std::{any::Any, collections::HashSet, error, io, net::SocketAddr, sync::Arc},
     thiserror::Error,
 };
 
@@ -991,5 +992,14 @@ pub trait GeyserPlugin: Any + Send + Sync + std::fmt::Debug {
     /// Default is empty -- plugins must override to opt in.
     fn pre_accounts_program_ids(&self) -> Vec<Pubkey> {
         vec![]
+    }
+
+    /// Returns an optional shared, dynamically-updatable set of program IDs
+    /// for pre-execution account capture. When `Some`, the validator uses
+    /// this shared reference instead of the static `pre_accounts_program_ids()`.
+    /// The plugin can update the set at runtime (e.g. driven by gRPC
+    /// subscriptions with `include_pre_accounts`).
+    fn pre_accounts_program_ids_shared(&self) -> Option<Arc<ArcSwap<HashSet<Pubkey>>>> {
+        None
     }
 }

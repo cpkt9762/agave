@@ -74,7 +74,7 @@ impl PreAccountsCollectionRoutines for PreAccountsCollector {
 
         let mut tx_pre_accounts = vec![];
         for (index, key) in transaction.account_keys().iter().enumerate() {
-            if transaction.is_writable(index) && !transaction.is_invoked(index) {
+            if !transaction.is_invoked(index) {
                 if let Some(account) = account_loader.load_account(key) {
                     tx_pre_accounts.push(PreAccountEntry {
                         pubkey: *key,

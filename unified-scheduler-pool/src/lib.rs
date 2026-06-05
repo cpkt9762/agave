@@ -130,6 +130,7 @@ pub struct HandlerContext {
     transaction_status_sender: Option<TransactionStatusSender>,
     replay_vote_sender: Option<ReplayVoteSender>,
     prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
+    pre_accounts_program_ids: Option<Arc<ArcSwap<HashSet<Pubkey>>>>,
 }
 
 impl HandlerContext {
@@ -150,6 +151,7 @@ struct CommonHandlerContext {
     transaction_status_sender: Option<TransactionStatusSender>,
     replay_vote_sender: Option<ReplayVoteSender>,
     prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
+    pre_accounts_program_ids: Option<Arc<ArcSwap<HashSet<Pubkey>>>>,
 }
 
 impl CommonHandlerContext {
@@ -159,6 +161,7 @@ impl CommonHandlerContext {
             transaction_status_sender,
             replay_vote_sender,
             prioritization_fee_cache,
+            pre_accounts_program_ids,
         } = self;
 
         HandlerContext {
@@ -167,6 +170,7 @@ impl CommonHandlerContext {
             transaction_status_sender,
             replay_vote_sender,
             prioritization_fee_cache,
+            pre_accounts_program_ids,
         }
     }
 }
@@ -204,6 +208,7 @@ where
         transaction_status_sender: Option<TransactionStatusSender>,
         replay_vote_sender: Option<ReplayVoteSender>,
         prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
+        pre_accounts_program_ids: Option<Arc<ArcSwap<HashSet<Pubkey>>>>,
     ) -> Arc<Self> {
         Self::do_new(
             block_verification_handler_count,
@@ -211,6 +216,7 @@ where
             transaction_status_sender,
             replay_vote_sender,
             prioritization_fee_cache,
+            pre_accounts_program_ids,
             DEFAULT_POOL_CLEANER_INTERVAL,
             DEFAULT_MAX_POOLING_DURATION,
             DEFAULT_MAX_USAGE_QUEUE_COUNT,
@@ -232,6 +238,7 @@ where
             transaction_status_sender,
             replay_vote_sender,
             prioritization_fee_cache,
+            None,
         )
     }
 
@@ -242,6 +249,7 @@ where
         transaction_status_sender: Option<TransactionStatusSender>,
         replay_vote_sender: Option<ReplayVoteSender>,
         prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
+        pre_accounts_program_ids: Option<Arc<ArcSwap<HashSet<Pubkey>>>>,
         pool_cleaner_interval: Duration,
         max_pooling_duration: Duration,
         max_usage_queue_count: usize,
@@ -350,6 +358,7 @@ where
                 transaction_status_sender,
                 replay_vote_sender,
                 prioritization_fee_cache,
+                pre_accounts_program_ids,
             },
             block_verification_handler_count,
             weak_self: weak_self.clone(),
@@ -583,7 +592,11 @@ impl TaskHandler for DefaultTaskHandler {
             },
             timings,
             handler_context.log_messages_bytes_limit,
-            None,
+            handler_context
+                .pre_accounts_program_ids
+                .as_ref()
+                .map(|s| s.load_full())
+                .as_deref(),
             handler_context.prioritization_fee_cache.as_deref(),
         );
         sleepless_testing::at(CheckPoint::TaskHandled(task_id));
@@ -3433,6 +3446,7 @@ mod tests {
             transaction_status_sender: None,
             replay_vote_sender: None,
             prioritization_fee_cache: None,
+            pre_accounts_program_ids: None,
         };
 
         let task = SchedulingStateMachine::create_task(tx, 0, &mut |_| {
