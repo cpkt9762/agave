@@ -154,7 +154,7 @@ impl Tpu {
         replay_vote_sender: ReplayVoteSender,
         bank_notification_sender: Option<BankNotificationSenderConfig>,
         duplicate_confirmed_slot_sender: DuplicateConfirmedSlotsSender,
-        pre_accounts_program_ids: Option<Arc<std::collections::HashSet<Pubkey>>>,
+        pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<std::collections::HashSet<Pubkey>>>>,
         tpu_forwarding_client_config: ForwardingClientConfig,
         keypair: &Keypair,
         log_messages_bytes_limit: Option<usize>,

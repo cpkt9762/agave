@@ -142,6 +142,12 @@ impl GeyserPluginManager {
             .collect()
     }
 
+    pub fn pre_accounts_program_ids_shared(&self) -> Option<Arc<ArcSwap<HashSet<Pubkey>>>> {
+        self.plugins
+            .iter()
+            .find_map(|plugin| plugin.pre_accounts_program_ids_shared())
+    }
+
     /// Admin RPC request handler
     pub(crate) fn list_plugins(&self) -> JsonRpcResult<Vec<String>> {
         Ok(self.plugins.iter().map(|p| p.name().to_owned()).collect())

@@ -16,6 +16,7 @@ dev-context-only-utils = []
 [dependencies]
 agave-banking-stage-ingress-types = { workspace = true }
 aquamarine = { workspace = true }
+arc-swap = { workspace = true }
 assert_matches = { workspace = true }
 crossbeam-channel = { workspace = true }
 dashmap = { workspace = true }

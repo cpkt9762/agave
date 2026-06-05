@@ -833,8 +833,12 @@ impl Validator {
                 None
             };
         let pre_accounts_program_ids = geyser_plugin_service.as_ref().and_then(|service| {
-            let program_ids = service.get_pre_accounts_program_ids();
-            (!program_ids.is_empty()).then(|| Arc::new(program_ids))
+            if let Some(shared) = service.get_pre_accounts_program_ids_shared() {
+                Some(shared)
+            } else {
+                let program_ids = service.get_pre_accounts_program_ids();
+                (!program_ids.is_empty()).then(|| Arc::new(ArcSwap::from_pointee(program_ids)))
+            }
         });
 
         if config.voting_disabled {
@@ -1132,6 +1136,7 @@ impl Validator {
             transaction_status_sender.clone(),
             Some(replay_vote_sender.clone()),
             prioritization_fee_cache.clone(),
+            pre_accounts_program_ids.clone(),
         );
         bank_forks
             .write()
@@ -2229,7 +2234,7 @@ fn load_blockstore(
     accounts_update_notifier: Option<AccountsUpdateNotifier>,
     transaction_notifier: Option<TransactionNotifierArc>,
     entry_notifier: Option<EntryNotifierArc>,
-    pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
+    pre_accounts_program_ids: Option<Arc<ArcSwap<HashSet<Pubkey>>>>,
     dependency_tracker: Option<Arc<DependencyTracker>>,
 ) -> Result<
     (
