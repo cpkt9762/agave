@@ -406,6 +406,7 @@ pub fn load_and_process_ledger(
                 transaction_status_sender.clone(),
                 no_replay_vote_sender,
                 None,
+                process_options.pre_accounts_program_ids.clone(),
             );
             bank_forks
                 .write()

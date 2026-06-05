@@ -147,7 +147,7 @@ pub struct Consumer {
     transaction_recorder: TransactionRecorder,
     qos_service: QosService,
     log_messages_bytes_limit: Option<usize>,
-    pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
+    pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
     seq_not_conflict_batch_reusables: Cell<SeqNotConflictBatchReusables>,
 }
 
@@ -174,7 +174,7 @@ impl Consumer {
         transaction_recorder: TransactionRecorder,
         qos_service: QosService,
         log_messages_bytes_limit: Option<usize>,
-        pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
+        pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
     ) -> Self {
         Self {
             committer,
@@ -460,8 +460,12 @@ impl Consumer {
             };
         }
 
-        let (load_and_execute_transactions_output, load_execute_us) =
-            measure_us!(bank.load_and_execute_transactions(
+        let pre_accounts_guard = self
+            .pre_accounts_program_ids
+            .as_ref()
+            .map(|swap| swap.load_full());
+        let (load_and_execute_transactions_output, load_execute_us) = measure_us!(bank
+            .load_and_execute_transactions(
                 batch,
                 MAX_PROCESSING_AGE,
                 &mut execute_and_commit_timings.execute_timings,
@@ -476,11 +480,13 @@ impl Consumer {
                         enable_log_recording: transaction_status_sender_enabled,
                         enable_return_data_recording: transaction_status_sender_enabled,
                         enable_transaction_balance_recording: transaction_status_sender_enabled,
-                        enable_pre_accounts_recording: self.pre_accounts_program_ids.is_some(),
+                        enable_pre_accounts_recording: pre_accounts_guard
+                            .as_ref()
+                            .map_or(false, |g| !g.is_empty()),
                     },
                     drop_on_failure: flags.drop_on_failure,
                     all_or_nothing: flags.all_or_nothing,
-                    pre_accounts_program_ids: self.pre_accounts_program_ids.as_deref(),
+                    pre_accounts_program_ids: pre_accounts_guard.as_deref(),
                 }
             ));
         execute_and_commit_timings.load_execute_us = load_execute_us;

@@ -322,7 +322,15 @@ pub fn execute_batch<'a>(
         let (balances, token_balances) =
             compile_collected_balances(balance_collector.unwrap_or_default());
         let mut pre_accounts = compile_pre_accounts(pre_accounts_collector);
-        pre_accounts.resize(transactions.len(), vec![]);
+        // Ensure pre_accounts length matches transactions length.
+        // When pre_accounts_program_ids is None (e.g. unified scheduler path),
+        // compile_pre_accounts returns an empty vec. izip! takes the shortest
+        // iterator, so an empty pre_accounts would skip ALL transactions in
+        // TransactionStatusService::write_transaction_status_batch, preventing
+        // notify_transaction from ever being called.
+        if pre_accounts.len() != transactions.len() {
+            pre_accounts.resize_with(transactions.len(), Vec::new);
+        }
 
         // The length of costs vector needs to be consistent with all other
         // vectors that are sent over (such as `transactions`). So, replace the
@@ -919,7 +927,7 @@ pub struct ProcessOptions {
     pub hash_overrides: Option<HashOverrides>,
     pub abort_on_invalid_block: bool,
     pub no_block_cost_limits: bool,
-    pub pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
+    pub pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
 }
 
 pub fn test_process_blockstore(
@@ -1208,7 +1216,10 @@ fn confirm_full_slot(
         replay_vote_sender,
         opts.allow_dead_slots,
         opts.runtime_config.log_messages_bytes_limit,
-        opts.pre_accounts_program_ids.as_deref(),
+        opts.pre_accounts_program_ids
+            .as_ref()
+            .map(|s| s.load_full())
+            .as_deref(),
         None,
         migration_status,
     )?;

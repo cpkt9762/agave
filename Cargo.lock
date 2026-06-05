@@ -138,6 +138,7 @@ dependencies = [
 name = "agave-geyser-plugin-interface"
 version = "3.1.8"
 dependencies = [
+ "arc-swap",
  "log",
  "solana-clock",
  "solana-hash 3.1.0",
@@ -7691,16 +7692,16 @@ dependencies = [
 
 [[package]]
 name = "solana-bn254"
-version = "3.1.2"
+version = "3.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d08583be08d2d5f19aa21efbb6fbdb968ba7fd0de74562441437a7d776772bf"
+checksum = "62ff13a8867fcc7b0f1114764e1bf6191b4551dcaf93729ddc676cd4ec6abc9f"
 dependencies = [
- "ark-bn254 0.4.0",
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-serialize 0.4.2",
+ "ark-bn254 0.5.0",
+ "ark-ec 0.5.0",
+ "ark-ff 0.5.0",
+ "ark-serialize 0.5.0",
  "bytemuck",
- "solana-define-syscall 3.0.0",
+ "solana-define-syscall 5.0.0",
  "thiserror 2.0.17",
 ]
 
@@ -8623,6 +8624,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57e5b1c0bc1d4a4d10c88a4100499d954c09d3fecfae4912c1a074dff68b1738"
 
 [[package]]
+name = "solana-define-syscall"
+version = "5.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03aacdd7a61e2109887a7a7f046caebafce97ddf1150f33722eeac04f9039c73"
+
+[[package]]
 name = "solana-derivation-path"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9019,6 +9026,7 @@ name = "solana-geyser-plugin-manager"
 version = "3.1.8"
 dependencies = [
  "agave-geyser-plugin-interface",
+ "arc-swap",
  "bs58",
  "crossbeam-channel",
  "json5",
@@ -9313,6 +9321,7 @@ dependencies = [
  "agave-reserved-account-keys",
  "agave-snapshots",
  "anyhow",
+ "arc-swap",
  "assert_matches",
  "bincode",
  "bitflags 2.9.4",
@@ -11931,6 +11940,7 @@ dependencies = [
  "agave-banking-stage-ingress-types",
  "agave-logger",
  "aquamarine",
+ "arc-swap",
  "assert_matches",
  "crossbeam-channel",
  "dashmap",

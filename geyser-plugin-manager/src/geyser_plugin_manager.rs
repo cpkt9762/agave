@@ -1,5 +1,6 @@
 use {
     agave_geyser_plugin_interface::geyser_plugin_interface::GeyserPlugin,
+    arc_swap::ArcSwap,
     jsonrpc_core::{ErrorCode, Result as JsonRpcResult},
     libloading::Library,
     log::*,
@@ -8,6 +9,7 @@ use {
         collections::HashSet,
         ops::{Deref, DerefMut},
         path::Path,
+        sync::Arc,
     },
     tokio::sync::oneshot::Sender as OneShotSender,
 };
@@ -116,6 +118,12 @@ impl GeyserPluginManager {
             .iter()
             .flat_map(|plugin| plugin.pre_accounts_program_ids())
             .collect()
+    }
+
+    pub fn pre_accounts_program_ids_shared(&self) -> Option<Arc<ArcSwap<HashSet<Pubkey>>>> {
+        self.plugins
+            .iter()
+            .find_map(|plugin| plugin.pre_accounts_program_ids_shared())
     }
 
     /// Admin RPC request handler

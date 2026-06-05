@@ -133,7 +133,7 @@ pub struct TvuConfig {
     pub replay_transactions_threads: NonZeroUsize,
     pub shred_sigverify_threads: NonZeroUsize,
     pub xdp_sender: Option<XdpSender>,
-    pub pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
+    pub pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
 }
 
 impl Default for TvuConfig {

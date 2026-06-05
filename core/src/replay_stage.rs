@@ -282,7 +282,7 @@ pub struct ReplayStageConfig {
     pub vote_tracker: Arc<VoteTracker>,
     pub cluster_slots: Arc<ClusterSlots>,
     pub log_messages_bytes_limit: Option<usize>,
-    pub pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
+    pub pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
     pub prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
     pub banking_tracer: Arc<BankingTracer>,
     pub snapshot_controller: Option<Arc<SnapshotController>>,
@@ -3136,7 +3136,7 @@ impl ReplayStage {
         replay_vote_sender: &ReplayVoteSender,
         replay_timing: &mut ReplayLoopTiming,
         log_messages_bytes_limit: Option<usize>,
-        pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
+        pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
         active_bank_slots: &[Slot],
         prioritization_fee_cache: Option<&PrioritizationFeeCache>,
         migration_status: &MigrationStatus,
@@ -3256,7 +3256,10 @@ impl ReplayStage {
                             entry_notification_sender,
                             &replay_vote_sender.clone(),
                             log_messages_bytes_limit,
-                            pre_accounts_program_ids.as_deref(),
+                            pre_accounts_program_ids
+                                .as_ref()
+                                .map(|s| s.load_full())
+                                .as_deref(),
                             prioritization_fee_cache,
                             migration_status,
                         );
@@ -3290,7 +3293,7 @@ impl ReplayStage {
         replay_vote_sender: &ReplayVoteSender,
         replay_timing: &mut ReplayLoopTiming,
         log_messages_bytes_limit: Option<usize>,
-        pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
+        pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
         bank_slot: Slot,
         prioritization_fee_cache: Option<&PrioritizationFeeCache>,
         migration_status: &MigrationStatus,
@@ -3371,7 +3374,10 @@ impl ReplayStage {
                     entry_notification_sender,
                     &replay_vote_sender.clone(),
                     log_messages_bytes_limit,
-                    pre_accounts_program_ids.as_deref(),
+                    pre_accounts_program_ids
+                        .as_ref()
+                        .map(|s| s.load_full())
+                        .as_deref(),
                     prioritization_fee_cache,
                     migration_status,
                 );
@@ -3772,7 +3778,7 @@ impl ReplayStage {
         block_metadata_notifier: Option<BlockMetadataNotifierArc>,
         replay_timing: &mut ReplayLoopTiming,
         log_messages_bytes_limit: Option<usize>,
-        pre_accounts_program_ids: Option<Arc<HashSet<Pubkey>>>,
+        pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
         replay_mode: &ForkReplayMode,
         replay_tx_thread_pool: &ThreadPool,
         prioritization_fee_cache: Option<&PrioritizationFeeCache>,
