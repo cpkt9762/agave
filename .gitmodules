@@ -4,3 +4,7 @@
 [submodule "jito-protos/bam-protos"]
 	path = jito-protos/bam-protos
 	url = https://github.com/jito-labs/bam-protos.git
+[submodule "geyser-plugin/yellowstone-grpc"]
+	path = geyser-plugin/yellowstone-grpc
+	url = https://github.com/cpkt9762/yellowstone-grpc.git
+	branch = agave-v4.0.1-pre-accounts
