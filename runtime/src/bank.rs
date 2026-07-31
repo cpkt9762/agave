@@ -4463,7 +4463,6 @@ impl Bank {
     pub fn load_execute_and_commit_transactions_with_pre_commit_callback_and_pre_accounts<'a>(
         &'a self,
         batch: &TransactionBatch<impl TransactionWithMeta>,
-        max_age: usize,
         recording_config: ExecutionRecordingConfig,
         timings: &mut ExecuteTimings,
         log_messages_bytes_limit: Option<usize>,
@@ -4479,7 +4478,6 @@ impl Bank {
     )> {
         self.do_load_execute_and_commit_transactions_with_pre_commit_callback(
             batch,
-            max_age,
             recording_config,
             timings,
             log_messages_bytes_limit,

@@ -228,8 +228,7 @@ impl GeyserPluginService {
 
     pub fn get_pre_accounts_program_ids(&self) -> HashSet<Pubkey> {
         self.plugin_manager
-            .read()
-            .unwrap()
+            .load()
             .pre_accounts_program_ids()
     }
 
@@ -237,8 +236,7 @@ impl GeyserPluginService {
         &self,
     ) -> Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>> {
         self.plugin_manager
-            .read()
-            .unwrap()
+            .load()
             .pre_accounts_program_ids_shared()
     }
 
