@@ -7,4 +7,4 @@
 [submodule "geyser-plugin/yellowstone-grpc"]
 	path = geyser-plugin/yellowstone-grpc
 	url = https://github.com/cpkt9762/yellowstone-grpc.git
-	branch = agave-v4.0.1-pre-accounts
+	branch = v14.2.2-pre-accounts
