@@ -171,11 +171,13 @@ dependencies = [
 name = "agave-geyser-plugin-interface"
 version = "4.3.2"
 dependencies = [
+ "arc-swap",
  "log",
  "solana-clock",
  "solana-entry",
  "solana-hash 4.6.0",
  "solana-message",
+ "solana-pubkey 4.3.0",
  "solana-signature",
  "solana-svm",
  "solana-transaction",
@@ -9387,6 +9389,7 @@ dependencies = [
  "agave-snapshots",
  "agave-votor-messages",
  "anyhow",
+ "arc-swap",
  "assert_matches",
  "atomic-wait",
  "bitflags 2.13.1",
@@ -11984,6 +11987,7 @@ version = "4.3.2"
 dependencies = [
  "agave-banking-stage-ingress-types",
  "agave-logger",
+ "arc-swap",
  "assert_matches",
  "crossbeam-channel",
  "dashmap",
