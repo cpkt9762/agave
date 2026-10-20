@@ -2284,6 +2284,7 @@ mod tests {
                 Committer::new(None, replay_vote_sender, None),
                 TransactionRecorder::new(record_sender),
                 None,
+                None,
             ),
             finished_work_sender,
             shared_leader_state,

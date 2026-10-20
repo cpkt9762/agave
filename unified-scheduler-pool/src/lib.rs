@@ -1943,6 +1943,7 @@ mod tests {
                 transaction_status_sender,
                 replay_vote_sender,
                 prioritization_fee_cache,
+                None,
                 pool_cleaner_interval,
                 max_pooling_duration,
                 max_usage_queue_count,
@@ -1965,6 +1966,7 @@ mod tests {
                 transaction_status_sender,
                 replay_vote_sender,
                 prioritization_fee_cache,
+                None,
             )
         }
     }
@@ -3055,7 +3057,7 @@ mod tests {
         let bank = Bank::new_for_tests(&genesis_config);
         let (bank, _bank_forks) = setup_dummy_fork_graph(bank);
         let pool =
-            SchedulerPool::<PooledScheduler<StallingHandler>, _>::new(None, None, None, None, None);
+            SchedulerPool::<PooledScheduler<StallingHandler>, _>::new(None, None, None, None, None, None);
 
         // This variable tracks the cumulative count of transactions since genesis, which is
         // incremented as test is progressed.

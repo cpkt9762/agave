@@ -1723,6 +1723,7 @@ mod tests {
                     None,
                     replay_vote_sender,
                     None,
+                    None,
                     bank_forks.clone(),
                     SharedAlpenglowSlotClock::default(), // keep a local-copy of bank-forks so worker threads do not lose weak access to bank-forks
                     Some(Arc::new(PrioritizationFeeCache::new(0u64))),

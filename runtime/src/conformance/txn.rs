@@ -171,6 +171,7 @@ pub fn execute_txn(
         enable_log_recording: true,
         enable_return_data_recording: true,
         enable_transaction_balance_recording: false,
+        enable_pre_accounts_recording: false,
     };
     let processing_config = TransactionProcessingConfig {
         recording_config,

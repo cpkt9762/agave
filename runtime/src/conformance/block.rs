@@ -601,7 +601,7 @@ pub fn execute_block(context: &ProtoBlockContext) -> ProtoBlockEffects {
             continue;
         };
 
-        let (commit_results, _) = bank.load_execute_and_commit_transactions(
+        let (commit_results, ..) = bank.load_execute_and_commit_transactions(
             &batch,
             ExecutionRecordingConfig::new_single_setting(false),
             &mut ExecuteTimings::default(),

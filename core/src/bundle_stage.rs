@@ -1086,7 +1086,7 @@ mod tests {
             .get_initialize_tip_programs_bundle(bank, leader_keypair)
             .unwrap();
         let batch = bank.prepare_sanitized_batch(&init_txs);
-        let (results, _) = bank.load_execute_and_commit_transactions(
+        let (results, ..) = bank.load_execute_and_commit_transactions(
             &batch,
             ExecutionRecordingConfig::new_single_setting(true),
             &mut ExecuteTimings::default(),

@@ -12765,7 +12765,7 @@ fn test_temporary_account_execute_and_commit() {
     let txs = vec![tx1, tx2];
     let batch = bank.prepare_sanitized_batch(&txs);
 
-    let (commit_results, _) = bank.load_execute_and_commit_transactions(
+    let (commit_results, ..) = bank.load_execute_and_commit_transactions(
         &batch,
         ExecutionRecordingConfig::default(),
         &mut ExecuteTimings::default(),
@@ -12852,7 +12852,7 @@ fn test_temporary_account_recreated_execute_and_commit() {
     let txs = vec![tx1, tx2, tx3];
     let batch = bank.prepare_sanitized_batch(&txs);
 
-    let (commit_results, _) = bank.load_execute_and_commit_transactions(
+    let (commit_results, ..) = bank.load_execute_and_commit_transactions(
         &batch,
         ExecutionRecordingConfig::default(),
         &mut ExecuteTimings::default(),
