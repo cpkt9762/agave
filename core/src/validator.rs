@@ -1,6 +1,7 @@
 //! The `validator` module hosts all the validator microservices.
 
 pub use solana_perf::report_target_features;
+pub use solana_svm::pre_accounts_derived::PreAccountsDerivationConfig;
 use {crate::tip_manager::TipManagerConfig, solana_turbine::ShredReceiverAddresses};
 use {
     crate::{
@@ -342,6 +343,7 @@ pub struct ValidatorConfig {
     pub on_start_geyser_plugin_config_files: Option<Vec<PathBuf>>,
     pub geyser_plugin_always_enabled: bool,
     pub pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
+    pub pre_accounts_derivation: PreAccountsDerivationConfig,
     pub rpc_addrs: Option<(SocketAddr, SocketAddr)>, // (JsonRpc, JsonRpcPubSub)
     pub pubsub_config: PubSubConfig,
     pub snapshot_config: SnapshotConfig,
@@ -450,6 +452,8 @@ impl ValidatorConfig {
             on_start_geyser_plugin_config_files: None,
             geyser_plugin_always_enabled: false,
             pre_accounts_cpi_program_ids: None,
+            pre_accounts_derivation:
+                solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             rpc_addrs: None,
             pubsub_config: PubSubConfig::default_for_tests(),
             snapshot_config: SnapshotConfig::new_load_only(),
@@ -898,6 +902,8 @@ impl Validator {
                 None
             };
         let pre_accounts_cpi_program_ids = config.pre_accounts_cpi_program_ids.clone();
+        let pre_accounts_derivation = config.pre_accounts_derivation;
+        info!("Geyser derived pre-accounts configuration: {pre_accounts_derivation:?}");
         info!(
             "Geyser pre-accounts selection: top-level registry OR CPI account-key whitelist; CPI program IDs: {:?}",
             pre_accounts_cpi_program_ids,
@@ -1031,6 +1037,7 @@ impl Validator {
             entry_notifier,
             pre_accounts_program_ids.clone(),
             pre_accounts_cpi_program_ids.clone(),
+            pre_accounts_derivation,
             config
                 .rpc_addrs
                 .is_some()
@@ -1215,6 +1222,7 @@ impl Validator {
             prioritization_fee_cache.clone(),
             pre_accounts_program_ids.clone(),
             pre_accounts_cpi_program_ids.clone(),
+            pre_accounts_derivation,
         );
         bank_forks
             .write()
@@ -1871,6 +1879,7 @@ impl Validator {
             duplicate_confirmed_slot_sender,
             pre_accounts_program_ids.clone(),
             pre_accounts_cpi_program_ids.clone(),
+            pre_accounts_derivation,
             tpu_forwarding_client_config,
             &identity_keypair,
             config.runtime_config.log_messages_bytes_limit,
@@ -2514,6 +2523,7 @@ fn load_blockstore(
     entry_notifier: Option<EntryNotifierArc>,
     pre_accounts_program_ids: Option<Arc<ArcSwap<HashSet<Pubkey>>>>,
     pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
+    pre_accounts_derivation: PreAccountsDerivationConfig,
     dependency_tracker: Option<Arc<DependencyTracker>>,
 ) -> Result<
     (
@@ -2547,6 +2557,7 @@ fn load_blockstore(
         use_snapshot_archives_at_startup: config.use_snapshot_archives_at_startup,
         pre_accounts_program_ids,
         pre_accounts_cpi_program_ids,
+        pre_accounts_derivation,
         ..blockstore_processor::ProcessOptions::default()
     };
 

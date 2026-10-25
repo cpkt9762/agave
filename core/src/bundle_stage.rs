@@ -341,6 +341,7 @@ impl BundleStage {
         replay_vote_sender: ReplayVoteSender,
         log_messages_bytes_limit: Option<usize>,
         pre_accounts_cpi_program_ids: Option<Arc<std::collections::HashSet<Pubkey>>>,
+        pre_accounts_derivation: solana_svm::pre_accounts_derived::PreAccountsDerivationConfig,
         exit: Arc<AtomicBool>,
         tip_manager: TipManager,
         bundle_account_locker: BundleAccountLocker,
@@ -360,6 +361,7 @@ impl BundleStage {
             replay_vote_sender,
             log_messages_bytes_limit,
             pre_accounts_cpi_program_ids,
+            pre_accounts_derivation,
             exit,
             tip_manager,
             bundle_account_locker,
@@ -386,6 +388,7 @@ impl BundleStage {
         replay_vote_sender: ReplayVoteSender,
         log_message_bytes_limit: Option<usize>,
         pre_accounts_cpi_program_ids: Option<Arc<std::collections::HashSet<Pubkey>>>,
+        pre_accounts_derivation: solana_svm::pre_accounts_derived::PreAccountsDerivationConfig,
         exit: Arc<AtomicBool>,
         tip_manager: TipManager,
         bundle_account_locker: BundleAccountLocker,
@@ -411,6 +414,7 @@ impl BundleStage {
             transaction_recorder,
             log_message_bytes_limit,
             pre_accounts_cpi_program_ids,
+            pre_accounts_derivation,
         );
 
         let block_builder_fee_info = block_builder_fee_info.clone();
@@ -1150,6 +1154,7 @@ mod tests {
             TransactionRecorder::new(record_sender),
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
         );
         let mut metrics = BundleStageLoopMetrics::default();
         let mut last_tip_update_slot = Slot::MAX;
@@ -1195,6 +1200,7 @@ mod tests {
             TransactionRecorder::new(record_sender),
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
         );
 
         let result = BundleStage::handle_crank_tip_programs(
@@ -1393,6 +1399,7 @@ mod tests {
             replay_vote_sender,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             exit.clone(),
             TipManager::new(TipManagerConfig {
                 tip_payment_program_id: Pubkey::from(jito_tip_payment::id().to_bytes()),
@@ -1534,6 +1541,7 @@ mod tests {
             replay_vote_sender,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             exit.clone(),
             TipManager::new(TipManagerConfig {
                 tip_payment_program_id: Pubkey::from(jito_tip_payment::id().to_bytes()),
@@ -1627,6 +1635,7 @@ mod tests {
             replay_vote_sender,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             exit.clone(),
             TipManager::new(TipManagerConfig {
                 tip_payment_program_id: Pubkey::from(jito_tip_payment::id().to_bytes()),
@@ -1746,6 +1755,7 @@ mod tests {
             replay_vote_sender,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             exit.clone(),
             TipManager::new(TipManagerConfig {
                 tip_payment_program_id: Pubkey::from(jito_tip_payment::id().to_bytes()),
@@ -1864,6 +1874,7 @@ mod tests {
             replay_vote_sender,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             exit.clone(),
             TipManager::new(TipManagerConfig {
                 tip_payment_program_id: Pubkey::from(jito_tip_payment::id().to_bytes()),

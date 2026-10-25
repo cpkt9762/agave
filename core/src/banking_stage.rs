@@ -362,6 +362,7 @@ pub struct BankingStage {
     priority_floor: Arc<SchedulerPriorityFloor>,
     pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<std::collections::HashSet<Pubkey>>>>,
     pre_accounts_cpi_program_ids: Option<Arc<std::collections::HashSet<Pubkey>>>,
+    pre_accounts_derivation: solana_svm::pre_accounts_derived::PreAccountsDerivationConfig,
     threads: FuturesUnordered<NamedTask<std::thread::Result<()>>>,
     bundle_account_locker: BundleAccountLocker,
     tip_processing_dependencies: Option<TipProcessingDependencies>,
@@ -385,6 +386,7 @@ impl BankingStage {
         log_messages_bytes_limit: Option<usize>,
         pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<std::collections::HashSet<Pubkey>>>>,
         pre_accounts_cpi_program_ids: Option<Arc<std::collections::HashSet<Pubkey>>>,
+        pre_accounts_derivation: solana_svm::pre_accounts_derived::PreAccountsDerivationConfig,
         bank_forks: Arc<RwLock<BankForks>>,
         alpenglow_slot_clock: SharedAlpenglowSlotClock,
         prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
@@ -419,6 +421,7 @@ impl BankingStage {
             priority_floor,
             pre_accounts_program_ids,
             pre_accounts_cpi_program_ids,
+            pre_accounts_derivation,
             threads: FuturesUnordered::default(),
             bundle_account_locker,
             tip_processing_dependencies,
@@ -600,6 +603,7 @@ impl BankingStage {
                     self.log_messages_bytes_limit,
                     self.pre_accounts_program_ids.clone(),
                     self.pre_accounts_cpi_program_ids.clone(),
+                    self.pre_accounts_derivation,
                 ),
                 finished_work_sender.clone(),
                 self.poh_recorder.read().unwrap().shared_leader_state(),
@@ -698,6 +702,7 @@ impl BankingStage {
                 self.log_messages_bytes_limit,
                 self.pre_accounts_program_ids.clone(),
                 self.pre_accounts_cpi_program_ids.clone(),
+                self.pre_accounts_derivation,
             );
             let mut worker_metrics = Vec::with_capacity(num_workers);
             for index in 0..num_workers {
@@ -791,6 +796,7 @@ impl BankingStage {
             self.log_messages_bytes_limit,
             self.pre_accounts_program_ids.clone(),
             self.pre_accounts_cpi_program_ids.clone(),
+            self.pre_accounts_derivation,
         );
         let migration_status = self.bank_forks.read().unwrap().migration_status();
         let decision_maker = DecisionMaker::new(
@@ -885,6 +891,7 @@ mod external {
                         self.log_messages_bytes_limit,
                         self.pre_accounts_program_ids.clone(),
                         self.pre_accounts_cpi_program_ids.clone(),
+                        self.pre_accounts_derivation,
                     ),
                     worker_to_pack,
                     allocator,
@@ -1116,6 +1123,7 @@ mod tests {
             None,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             bank_forks,
             SharedAlpenglowSlotClock::default(),
             None,
@@ -1188,6 +1196,7 @@ mod tests {
             None,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             bank_forks,
             SharedAlpenglowSlotClock::default(),
             None,
@@ -1272,6 +1281,7 @@ mod tests {
             None,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             bank_forks, // keep a local-copy of bank-forks so worker threads do not lose weak access to bank-forks
             SharedAlpenglowSlotClock::default(),
             None,
@@ -1430,6 +1440,7 @@ mod tests {
                 None,
                 None,
                 None,
+                solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
                 bank_forks,
                 SharedAlpenglowSlotClock::default(),
                 None,
@@ -1600,6 +1611,7 @@ mod tests {
             None,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             bank_forks,
             SharedAlpenglowSlotClock::default(),
             None,
@@ -1737,6 +1749,7 @@ mod tests {
                     None,
                     None,
                     None,
+                    solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
                     bank_forks.clone(),
                     SharedAlpenglowSlotClock::default(), // keep a local-copy of bank-forks so worker threads do not lose weak access to bank-forks
                     Some(Arc::new(PrioritizationFeeCache::new(0u64))),

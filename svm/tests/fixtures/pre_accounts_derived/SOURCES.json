@@ -1,0 +1,162 @@
+{
+  "description": "Execution-prestate pool bytes from 2026-10-26 capture; keys from adapter_accounts_export on the exact same account directory/state, without RPC. stable=false due to missing arrays is not replay certification.",
+  "exporter_binary_sha256": "8ff1f97c187f8e2144d0f5caa26680fb9638ed250fb25b6b178d7db67b0bea3d",
+  "fixtures": [
+    {
+      "name": "whirlpool0",
+      "pool": "8Z9m9PzPSMJymPHY7Rsbye4QCJHzxTrban5kcgujc6bw",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "slot": 461381137,
+      "source": "/Users/pingzi/Developer/work/solana/solana-arbitrage/snapshots/grpc_pre_state/2026-10-26-arb-daily-033721-b95394fe/out/Arb/2JQs83b8BqktHAqQJ6Soc3cHYvWQp2h7ByYhfioQuBSaTuVavs1fr8VNV7GPW8ecPvTS9WiLpEJZELmy5RQhW889/accounts/8Z9m9PzPSMJymPHY7Rsbye4QCJHzxTrban5kcgujc6bw.json",
+      "source_sha256": "c01cd2c4f860c65f0851222d5993e9b02c17aba3edcd7c0bd66c0491673e8d83",
+      "data_sha256": "0bf548020dbb167817750fa7361e8b3829ba2bc11b08f30577874f087cd614dc",
+      "expected_keys": 11,
+      "exporter_command": [
+        "/Users/pingzi/Developer/work/solana/solana-arbitrage/shared-libs/metis-rs/target/debug/adapter_accounts_export",
+        "--pool",
+        "8Z9m9PzPSMJymPHY7Rsbye4QCJHzxTrban5kcgujc6bw",
+        "--accounts-dir",
+        "/Users/pingzi/Developer/work/solana/solana-arbitrage/snapshots/grpc_pre_state/2026-10-26-arb-daily-033721-b95394fe/out/Arb/2JQs83b8BqktHAqQJ6Soc3cHYvWQp2h7ByYhfioQuBSaTuVavs1fr8VNV7GPW8ecPvTS9WiLpEJZELmy5RQhW889/accounts",
+        "--slot",
+        "461381137"
+      ],
+      "exporter_exit_code": 0,
+      "exporter": {
+        "generated_at": "2026-10-25T20:54:47Z",
+        "git_sha": "aef61a0bd63850c62aab4c768a254858b9790e17",
+        "name": "adapter_accounts_export"
+      },
+      "exporter_output_sha256": "0920d1269358b9cc108740c527c07471220cec80a07870180bf87c8dc19cd9f3"
+    },
+    {
+      "name": "dlmm0",
+      "pool": "G7gMCLqY8Jp76DuLM2v9p3oUk5tftjreX7zkM5m1UXbA",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "slot": 461381137,
+      "source": "/Users/pingzi/Developer/work/solana/solana-arbitrage/snapshots/grpc_pre_state/2026-10-26-arb-daily-033721-b95394fe/out/Arb/2JQs83b8BqktHAqQJ6Soc3cHYvWQp2h7ByYhfioQuBSaTuVavs1fr8VNV7GPW8ecPvTS9WiLpEJZELmy5RQhW889/accounts/G7gMCLqY8Jp76DuLM2v9p3oUk5tftjreX7zkM5m1UXbA.json",
+      "source_sha256": "9dbbe629b0cceff72b991d35a2b7f98eaacb4ae87d391ef7849163da82a94e64",
+      "data_sha256": "b5e9c8f14708ecffbac684f68a3980c7409b55ada446927aa86dc84fcf2efc46",
+      "expected_keys": 8,
+      "exporter_command": [
+        "/Users/pingzi/Developer/work/solana/solana-arbitrage/shared-libs/metis-rs/target/debug/adapter_accounts_export",
+        "--pool",
+        "G7gMCLqY8Jp76DuLM2v9p3oUk5tftjreX7zkM5m1UXbA",
+        "--accounts-dir",
+        "/Users/pingzi/Developer/work/solana/solana-arbitrage/snapshots/grpc_pre_state/2026-10-26-arb-daily-033721-b95394fe/out/Arb/2JQs83b8BqktHAqQJ6Soc3cHYvWQp2h7ByYhfioQuBSaTuVavs1fr8VNV7GPW8ecPvTS9WiLpEJZELmy5RQhW889/accounts",
+        "--slot",
+        "461381137"
+      ],
+      "exporter_exit_code": 0,
+      "exporter": {
+        "generated_at": "2026-10-25T20:54:47Z",
+        "git_sha": "aef61a0bd63850c62aab4c768a254858b9790e17",
+        "name": "adapter_accounts_export"
+      },
+      "exporter_output_sha256": "a8b2dfae2a98b6f7d7fc28e52146a24a2ca162226933426892c372818ddd5d36"
+    },
+    {
+      "name": "dlmm1",
+      "pool": "G8YJWXiVkzAB295NePJMomvCeSj3eWwgtpQyK6nHddLQ",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "slot": 461381137,
+      "source": "/Users/pingzi/Developer/work/solana/solana-arbitrage/snapshots/grpc_pre_state/2026-10-26-arb-daily-033721-b95394fe/out/Arb/2JQs83b8BqktHAqQJ6Soc3cHYvWQp2h7ByYhfioQuBSaTuVavs1fr8VNV7GPW8ecPvTS9WiLpEJZELmy5RQhW889/accounts/G8YJWXiVkzAB295NePJMomvCeSj3eWwgtpQyK6nHddLQ.json",
+      "source_sha256": "c29ff2d0f341e2dc355c70e552c350d6142b6aa17e9d5efe207603afeab68770",
+      "data_sha256": "dfa2126a20ee3a70fe0a8627c2df40115dae68d925e6fef73c8aef75bb87ba08",
+      "expected_keys": 8,
+      "exporter_command": [
+        "/Users/pingzi/Developer/work/solana/solana-arbitrage/shared-libs/metis-rs/target/debug/adapter_accounts_export",
+        "--pool",
+        "G8YJWXiVkzAB295NePJMomvCeSj3eWwgtpQyK6nHddLQ",
+        "--accounts-dir",
+        "/Users/pingzi/Developer/work/solana/solana-arbitrage/snapshots/grpc_pre_state/2026-10-26-arb-daily-033721-b95394fe/out/Arb/2JQs83b8BqktHAqQJ6Soc3cHYvWQp2h7ByYhfioQuBSaTuVavs1fr8VNV7GPW8ecPvTS9WiLpEJZELmy5RQhW889/accounts",
+        "--slot",
+        "461381137"
+      ],
+      "exporter_exit_code": 0,
+      "exporter": {
+        "generated_at": "2026-10-25T20:54:47Z",
+        "git_sha": "aef61a0bd63850c62aab4c768a254858b9790e17",
+        "name": "adapter_accounts_export"
+      },
+      "exporter_output_sha256": "0c852f40070509dfb10d94e6c803a3820730df5334c85645a06e4e78eceddee4"
+    },
+    {
+      "name": "dlmm2",
+      "pool": "2H2TNJuqivWWM87oZF3pgBa7KhH3ugo6qea5rjkFey2b",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "slot": 461381987,
+      "source": "/Users/pingzi/Developer/work/solana/solana-arbitrage/snapshots/grpc_pre_state/2026-10-26-arb-daily-033721-b95394fe/out/Arb/2ZPBnDypUohZVdpw64Hg1wQ5iWqfM4F7zo7N3QtsAmKi1Lg3AgTEcYxFxb3TuYDvtJQE4KnqCK6RP92JJ8mDqX4T/accounts/2H2TNJuqivWWM87oZF3pgBa7KhH3ugo6qea5rjkFey2b.json",
+      "source_sha256": "c082503ba06c314322ddc49ef7964043acea9019f1927c748d194fded5b477d5",
+      "data_sha256": "5c2d4c15a2363dedbb8b93feb0d2233c53b77574b5972657f5f5ac9e287a159d",
+      "expected_keys": 9,
+      "exporter_command": [
+        "/Users/pingzi/Developer/work/solana/solana-arbitrage/shared-libs/metis-rs/target/debug/adapter_accounts_export",
+        "--pool",
+        "2H2TNJuqivWWM87oZF3pgBa7KhH3ugo6qea5rjkFey2b",
+        "--accounts-dir",
+        "/Users/pingzi/Developer/work/solana/solana-arbitrage/snapshots/grpc_pre_state/2026-10-26-arb-daily-033721-b95394fe/out/Arb/2ZPBnDypUohZVdpw64Hg1wQ5iWqfM4F7zo7N3QtsAmKi1Lg3AgTEcYxFxb3TuYDvtJQE4KnqCK6RP92JJ8mDqX4T/accounts",
+        "--slot",
+        "461381987"
+      ],
+      "exporter_exit_code": 0,
+      "exporter": {
+        "generated_at": "2026-10-25T20:54:47Z",
+        "git_sha": "aef61a0bd63850c62aab4c768a254858b9790e17",
+        "name": "adapter_accounts_export"
+      },
+      "exporter_output_sha256": "d042070821a482f27e8ecd798c5f5b591813b9e5c27f24be3491e5d1acf61d92"
+    },
+    {
+      "name": "whirlpool1",
+      "pool": "Czfq3xZZDmsdGdUyrNLtRhGc47cXcZtLG4crryfu44zE",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "slot": 461380950,
+      "source": "/Users/pingzi/Developer/work/solana/solana-arbitrage/snapshots/grpc_pre_state/2026-10-26-arb-daily-033721-b95394fe/out/Arb/3dhy7PHYwTibCQUcN2M1uda4YrfUusrygzs6STmn9eRgzUGJFg6WtxYS8XZgUH2QCqstw34djJYgbEzJppihqkEc/accounts/Czfq3xZZDmsdGdUyrNLtRhGc47cXcZtLG4crryfu44zE.json",
+      "source_sha256": "d87522277ee3ffe5d7b4ef8e9beb4fd486ee3c929ae5025f5f2f442201807b3e",
+      "data_sha256": "3aef7e57ca864eb8dbff2f579321d0bd31f141858801f53e64835a811a44391c",
+      "expected_keys": 11,
+      "exporter_command": [
+        "/Users/pingzi/Developer/work/solana/solana-arbitrage/shared-libs/metis-rs/target/debug/adapter_accounts_export",
+        "--pool",
+        "Czfq3xZZDmsdGdUyrNLtRhGc47cXcZtLG4crryfu44zE",
+        "--accounts-dir",
+        "/Users/pingzi/Developer/work/solana/solana-arbitrage/snapshots/grpc_pre_state/2026-10-26-arb-daily-033721-b95394fe/out/Arb/3dhy7PHYwTibCQUcN2M1uda4YrfUusrygzs6STmn9eRgzUGJFg6WtxYS8XZgUH2QCqstw34djJYgbEzJppihqkEc/accounts",
+        "--slot",
+        "461380950"
+      ],
+      "exporter_exit_code": 0,
+      "exporter": {
+        "generated_at": "2026-10-25T20:54:47Z",
+        "git_sha": "aef61a0bd63850c62aab4c768a254858b9790e17",
+        "name": "adapter_accounts_export"
+      },
+      "exporter_output_sha256": "561bb24205f98daa4ebaea72c3796586f2d37e29b9fdbb652d83236954676746"
+    },
+    {
+      "name": "whirlpool2",
+      "pool": "J5jzvT22u1Mt6de4gkBhEsTSTjBfYS7A6aF5jzu9ihkC",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "slot": 461380950,
+      "source": "/Users/pingzi/Developer/work/solana/solana-arbitrage/snapshots/grpc_pre_state/2026-10-26-arb-daily-033721-b95394fe/out/Arb/3dhy7PHYwTibCQUcN2M1uda4YrfUusrygzs6STmn9eRgzUGJFg6WtxYS8XZgUH2QCqstw34djJYgbEzJppihqkEc/accounts/J5jzvT22u1Mt6de4gkBhEsTSTjBfYS7A6aF5jzu9ihkC.json",
+      "source_sha256": "e96db3ff5e7f88e6b3d5370abede0e3af40e9144ed33b165e7e1d776d3c3b9e3",
+      "data_sha256": "acf289db0b7a26a1680f7ae618c790bac767764390ef6500d2cb7e861c6d5123",
+      "expected_keys": 11,
+      "exporter_command": [
+        "/Users/pingzi/Developer/work/solana/solana-arbitrage/shared-libs/metis-rs/target/debug/adapter_accounts_export",
+        "--pool",
+        "J5jzvT22u1Mt6de4gkBhEsTSTjBfYS7A6aF5jzu9ihkC",
+        "--accounts-dir",
+        "/Users/pingzi/Developer/work/solana/solana-arbitrage/snapshots/grpc_pre_state/2026-10-26-arb-daily-033721-b95394fe/out/Arb/3dhy7PHYwTibCQUcN2M1uda4YrfUusrygzs6STmn9eRgzUGJFg6WtxYS8XZgUH2QCqstw34djJYgbEzJppihqkEc/accounts",
+        "--slot",
+        "461380950"
+      ],
+      "exporter_exit_code": 0,
+      "exporter": {
+        "generated_at": "2026-10-25T20:54:47Z",
+        "git_sha": "aef61a0bd63850c62aab4c768a254858b9790e17",
+        "name": "adapter_accounts_export"
+      },
+      "exporter_output_sha256": "1c18f24801312c9d90257d3c9c81b0bb285585d33be521f154be60ea30c7466b"
+    }
+  ]
+}

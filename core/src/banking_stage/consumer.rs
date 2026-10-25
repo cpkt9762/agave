@@ -112,6 +112,7 @@ pub struct Consumer {
     log_messages_bytes_limit: Option<usize>,
     pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
     pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
+    pre_accounts_derivation: solana_svm::pre_accounts_derived::PreAccountsDerivationConfig,
 }
 
 impl Consumer {
@@ -121,6 +122,7 @@ impl Consumer {
         log_messages_bytes_limit: Option<usize>,
         pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
         pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
+        pre_accounts_derivation: solana_svm::pre_accounts_derived::PreAccountsDerivationConfig,
     ) -> Self {
         Self {
             committer,
@@ -128,6 +130,7 @@ impl Consumer {
             log_messages_bytes_limit,
             pre_accounts_program_ids,
             pre_accounts_cpi_program_ids,
+            pre_accounts_derivation,
         }
     }
 
@@ -476,6 +479,7 @@ impl Consumer {
                     drop_noop_transactions: true,
                     pre_accounts_program_ids: pre_accounts_guard.as_deref(),
                     pre_accounts_cpi_program_ids: self.pre_accounts_cpi_program_ids.as_deref(),
+                    pre_accounts_derivation: self.pre_accounts_derivation,
                 }
             )
         );
@@ -760,7 +764,14 @@ mod tests {
 
         let (replay_vote_sender, _replay_vote_receiver) = bounded(1024);
         let committer = Committer::new(transaction_status_sender, replay_vote_sender, None);
-        let consumer = Consumer::new(committer, recorder, None, None, None);
+        let consumer = Consumer::new(
+            committer,
+            recorder,
+            None,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
 
         TestFrame {
             mint_keypair,
@@ -785,7 +796,14 @@ mod tests {
 
         let (replay_vote_sender, _replay_vote_receiver) = bounded(1024);
         let committer = Committer::new(None, replay_vote_sender, None);
-        let consumer = Consumer::new(committer, recorder, None, None, None);
+        let consumer = Consumer::new(
+            committer,
+            recorder,
+            None,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
         consumer.process_and_record_transactions(
             &bank,
             &transactions,
@@ -1871,7 +1889,14 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let consumer = Consumer::new(committer, recorder.clone(), None, None, None);
+        let consumer = Consumer::new(
+            committer,
+            recorder.clone(),
+            None,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
 
         let process_transactions_summary = consumer.process_and_record_transactions(
             &bank,

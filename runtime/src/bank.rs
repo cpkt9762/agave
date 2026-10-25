@@ -3908,6 +3908,8 @@ impl Bank {
                 drop_noop_transactions: true,
                 pre_accounts_program_ids: None,
                 pre_accounts_cpi_program_ids: None,
+                pre_accounts_derivation:
+                    solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             },
         );
 
@@ -4096,6 +4098,8 @@ impl Bank {
                     check_program_deployment_slot: self.check_program_deployment_slot,
                     pre_accounts_program_ids: None,
                     pre_accounts_cpi_program_ids: None,
+                    pre_accounts_derivation:
+                        solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
                 },
                 &mut program_cache_for_tx_batch,
                 false,
@@ -4920,6 +4924,7 @@ impl Bank {
             log_messages_bytes_limit,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             None::<fn(&_) -> _>,
         )
         .unwrap()
@@ -4944,6 +4949,7 @@ impl Bank {
             log_messages_bytes_limit,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             Some(pre_commit_callback),
         )
     }
@@ -4956,6 +4962,7 @@ impl Bank {
         log_messages_bytes_limit: Option<usize>,
         pre_accounts_program_ids: Option<&HashSet<Pubkey>>,
         pre_accounts_cpi_program_ids: Option<&HashSet<Pubkey>>,
+        pre_accounts_derivation: solana_svm::pre_accounts_derived::PreAccountsDerivationConfig,
         pre_commit_callback: impl FnOnce(&[TransactionProcessingResult]) -> Result<()>,
     ) -> Result<(
         Vec<TransactionCommitResult>,
@@ -4969,6 +4976,7 @@ impl Bank {
             log_messages_bytes_limit,
             pre_accounts_program_ids,
             pre_accounts_cpi_program_ids,
+            pre_accounts_derivation,
             Some(pre_commit_callback),
         )
     }
@@ -4981,6 +4989,7 @@ impl Bank {
         log_messages_bytes_limit: Option<usize>,
         pre_accounts_program_ids: Option<&HashSet<Pubkey>>,
         pre_accounts_cpi_program_ids: Option<&HashSet<Pubkey>>,
+        pre_accounts_derivation: solana_svm::pre_accounts_derived::PreAccountsDerivationConfig,
         pre_commit_callback: Option<impl FnOnce(&[TransactionProcessingResult]) -> Result<()>>,
     ) -> Result<(
         Vec<TransactionCommitResult>,
@@ -5009,6 +5018,7 @@ impl Bank {
                 drop_noop_transactions: false,
                 pre_accounts_program_ids,
                 pre_accounts_cpi_program_ids,
+                pre_accounts_derivation,
             },
         );
 

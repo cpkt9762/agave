@@ -190,6 +190,7 @@ fn main() {
         None,
         None,
         None,
+        solana_core::validator::PreAccountsDerivationConfig::default(),
         bank_forks.clone(),
         agave_votor::slot_clock::SharedAlpenglowSlotClock::default(),
         Some(prioritization_fee_cache),

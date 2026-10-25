@@ -69,8 +69,7 @@ pub struct LoadAndProcessLedgerOutput {
     pub accounts_background_service: AccountsBackgroundService,
 }
 
-const PROCESS_SLOTS_HELP_STRING: &str =
-    "The starting slot is either the latest found snapshot slot, or genesis (slot 0) if the \
+const PROCESS_SLOTS_HELP_STRING: &str = "The starting slot is either the latest found snapshot slot, or genesis (slot 0) if the \
      --no-snapshot flag was specified or if no snapshots were found. The ending slot is the \
      snapshot creation slot for create-snapshot, the value for --halt-at-slot if specified, or \
      the highest slot in the blockstore.";
@@ -421,6 +420,7 @@ pub fn load_and_process_ledger(
                 no_prioritization_fee_cache,
                 process_options.pre_accounts_program_ids.clone(),
                 None, // CPI capture is only configured by the validator CLI.
+                solana_core::validator::PreAccountsDerivationConfig::default(),
             );
             bank_forks
                 .write()

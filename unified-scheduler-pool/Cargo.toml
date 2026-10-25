@@ -44,6 +44,7 @@ solana-unified-scheduler-logic = { workspace = true }
 static_assertions = { workspace = true }
 
 [dev-dependencies]
+solana-account = { workspace = true }
 agave-logger = { path = "../logger", features = ["agave-unstable-api"] }
 assert_matches = { workspace = true }
 solana-clock = { workspace = true }

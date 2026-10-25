@@ -2286,6 +2286,7 @@ mod tests {
                 None,
                 None,
                 None,
+                solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             ),
             finished_work_sender,
             shared_leader_state,

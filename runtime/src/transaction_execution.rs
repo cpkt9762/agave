@@ -68,6 +68,7 @@ pub fn execute_batch<'a>(
     log_messages_bytes_limit: Option<usize>,
     pre_accounts_program_ids: Option<&'a HashSet<Pubkey>>,
     pre_accounts_cpi_program_ids: Option<&'a HashSet<Pubkey>>,
+    pre_accounts_derivation: solana_svm::pre_accounts_derived::PreAccountsDerivationConfig,
     prioritization_fee_cache: Option<&'a PrioritizationFeeCache>,
 ) -> TransactionResult<()> {
     let TransactionBatchWithIndexes {
@@ -101,6 +102,7 @@ pub fn execute_batch<'a>(
             log_messages_bytes_limit,
             pre_accounts_program_ids,
             pre_accounts_cpi_program_ids,
+            pre_accounts_derivation,
             pre_commit_callback,
         )?;
 
@@ -386,6 +388,7 @@ mod tests {
             None,
             top.then_some(&ids),
             cpi.then_some(&ids),
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             None,
         )
         .expect("transfer executes with every capture configuration");
@@ -412,6 +415,101 @@ mod tests {
         }
         assert_eq!(bank.transaction_count(), 1);
         assert_eq!(bank.transaction_error_count(), 0);
+    }
+
+    #[test]
+    fn pre_accounts_derived_execute_batch_preserves_bank_hash() {
+        use solana_svm::pre_accounts_derived::PreAccountsDerivationConfig;
+        let GenesisConfigInfo {
+            genesis_config,
+            mint_keypair,
+            ..
+        } = create_genesis_config_with_leader(1_000_000_000, &Pubkey::new_unique(), 100);
+        let pool = Pubkey::new_unique();
+        let whirlpool = solana_pubkey::pubkey!("whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc");
+        let derived =
+            Pubkey::find_program_address(&[b"tick_array", pool.as_ref(), b"0"], &whirlpool).0;
+        let recipient = Pubkey::new_unique();
+        let mut tx =
+            system_transaction::transfer(&mint_keypair, &recipient, 1, genesis_config.hash());
+        tx.message.account_keys.insert(2, pool);
+        tx.message.instructions[0].program_id_index += 1;
+        tx.message.instructions[0].accounts.push(2);
+        tx.sign(&[&mint_keypair], genesis_config.hash());
+        let tx = RuntimeTransaction::from_transaction_for_tests(tx);
+        let ids = HashSet::from([solana_sdk_ids::system_program::id()]);
+        let mut results = Vec::new();
+        for enabled in [false, true] {
+            let bank = Bank::new_for_tests(&genesis_config);
+            let mut data = vec![0; 653];
+            data[..8].copy_from_slice(&[0x3f, 0x95, 0xd1, 0x0c, 0xe1, 0x80, 0x63, 0x09]);
+            data[41..43].copy_from_slice(&1u16.to_le_bytes());
+            let mut pool_account = AccountSharedData::new(1_000_000_000, 653, &whirlpool);
+            pool_account.set_data_from_slice(&data);
+            bank.store_account(&pool, &pool_account);
+            let mut array = AccountSharedData::new(1_000_000, 3, &whirlpool);
+            array.set_data_from_slice(&[3, 2, 1]);
+            bank.store_account(&derived, &array);
+            let (bank, _forks) = bank.wrap_with_bank_forks_for_tests();
+            let bank = Arc::new(bank);
+            let (sender, receiver) = bounded(1);
+            let sender = TransactionStatusSender {
+                sender,
+                dependency_tracker: None,
+            };
+            {
+                let batch = TransactionBatchWithIndexes {
+                    batch: bank.prepare_sanitized_batch(slice::from_ref(&tx)),
+                    transaction_indexes: vec![9],
+                };
+                assert!(
+                    batch.batch.lock_results()[0].is_ok(),
+                    "real pool write lock acquired"
+                );
+                execute_batch(
+                    &batch,
+                    &bank,
+                    Some(&sender),
+                    None,
+                    ReplayVoteSendType::VerifiedExecuted,
+                    &mut ExecuteTimings::default(),
+                    None,
+                    Some(&ids),
+                    None,
+                    PreAccountsDerivationConfig {
+                        whirlpool: enabled,
+                        ..solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default()
+                    },
+                    None,
+                )
+                .expect("transfer executes with derived collection enabled or disabled");
+            }
+            let TransactionStatusMessage::Batch((status, _)) =
+                receiver.try_recv().expect("status emitted")
+            else {
+                panic!("expected batch");
+            };
+            let extra = status.pre_accounts[0]
+                .iter()
+                .find(|entry| entry.pubkey == derived);
+            assert_eq!(extra.is_some(), enabled);
+            if let Some(extra) = extra {
+                assert_eq!(extra.data, [3, 2, 1]);
+                assert_eq!(extra.lamports, 1_000_000);
+            }
+            assert_eq!(bank.transaction_error_count(), 0);
+            bank.freeze();
+            results.push((
+                bank.hash(),
+                bank.get_account(&derived),
+                bank.get_account(&pool),
+                bank.get_account(&recipient),
+            ));
+        }
+        assert_eq!(
+            results[0], results[1],
+            "capture must not change committed accounts or full Bank hash"
+        );
     }
 
     #[test]
@@ -584,6 +682,7 @@ mod tests {
             None,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             None,
         );
 

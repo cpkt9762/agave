@@ -4370,3 +4370,256 @@ fn test_pre_accounts_cpi_real_invocation(cpi: bool) {
         assert_eq!(recipient_pre.lamports, initial_balance);
     }
 }
+
+// A real SBF writer changes a derived PDA while referencing a synthetic pool.
+// The writer need not be the DEX: this isolates snapshot ordering from DEX math.
+#[test_case(false; "earlier_batch_data_write")]
+#[test_case(true; "earlier_batch_close_tombstone")]
+fn pre_accounts_derived_batch_order_and_noninterference(close: bool) {
+    use solana_svm::pre_accounts_derived::PreAccountsDerivationConfig;
+    let whirlpool = solana_pubkey::pubkey!("whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc");
+    let pool = Pubkey::new_unique();
+    let target = Pubkey::find_program_address(&[b"tick_array", pool.as_ref(), b"0"], &whirlpool).0;
+    let payer = Keypair::new();
+    let recipient = Pubkey::new_unique();
+    let program = program_address("write-to-account");
+    let mut entry = SvmTestEntry::default();
+    entry.add_initial_program("write-to-account");
+    entry.add_initial_account(
+        payer.pubkey(),
+        &AccountSharedData::new(LAMPORTS_PER_SOL, 0, &system_program::id()),
+    );
+    entry.add_initial_account(
+        recipient,
+        &AccountSharedData::new(LAMPORTS_PER_SOL, 0, &system_program::id()),
+    );
+    let mut data = vec![0; 653];
+    data[..8].copy_from_slice(&[0x3f, 0x95, 0xd1, 0x0c, 0xe1, 0x80, 0x63, 0x09]);
+    data[41..43].copy_from_slice(&1u16.to_le_bytes());
+    let mut pool_account = AccountSharedData::new(LAMPORTS_PER_SOL, data.len(), &whirlpool);
+    pool_account.set_data_from_slice(&data);
+    entry.add_initial_account(pool, &pool_account);
+    let mut target_account = AccountSharedData::new(LAMPORTS_PER_SOL, 1, &program);
+    entry.add_initial_account(target, &target_account);
+    let writer = if close {
+        WriteProgramInstruction::Dealloc
+    } else {
+        WriteProgramInstruction::Set
+    };
+    let mut tx0 = writer.create_transaction(program, &payer, target, None);
+    let pool_index = u8::try_from(tx0.message.account_keys.len()).expect("small test message");
+    tx0.message.account_keys.push(pool);
+    tx0.message.header.num_readonly_unsigned_accounts += 1;
+    tx0.message.instructions[0].accounts.push(pool_index);
+    tx0.sign(&[&payer], Hash::default());
+    entry.push_transaction(tx0);
+    let mut transfer = system_instruction::transfer(&payer.pubkey(), &recipient, 7);
+    transfer.accounts.push(AccountMeta::new(pool, false));
+    entry.push_transaction(Transaction::new_signed_with_payer(
+        &[transfer],
+        Some(&payer.pubkey()),
+        &[&payer],
+        Hash::default(),
+    ));
+    entry.push_transaction(
+        WriteProgramInstruction::Print.create_transaction(program, &payer, target, None),
+    );
+    entry.decrease_expected_lamports(&payer.pubkey(), 7 + 3 * LAMPORTS_PER_SIGNATURE);
+    entry.increase_expected_lamports(&recipient, 7);
+    if close {
+        entry.drop_expected_account(target);
+        entry.transaction_batch[2]
+            .asserts
+            .logs
+            .push("Program log: account size 0".into());
+    } else {
+        target_account.data_as_mut_slice()[0] = 100;
+        entry.update_expected_account_data(target, &target_account);
+        entry.transaction_batch[2]
+            .asserts
+            .logs
+            .push("Program log: account size 1".into());
+    }
+    let ids = std::collections::HashSet::from([system_program::id()]);
+    let mut runs = Vec::new();
+    for enabled in [false, true] {
+        let mut env = SvmTestEnvironment::create(entry.clone());
+        env.processing_config
+            .recording_config
+            .enable_pre_accounts_recording = true;
+        env.processing_config.pre_accounts_program_ids = Some(&ids);
+        env.processing_config.pre_accounts_derivation = PreAccountsDerivationConfig {
+            whirlpool: enabled,
+            ..solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default()
+        };
+        // Bank starts with old data; only AccountLoader can expose T0's result at T1.
+        assert_eq!(
+            env.mock_bank.account_shared_data.read().unwrap()[&target].data(),
+            &[0]
+        );
+        let output = env.execute();
+        runs.push((env, output));
+    }
+    let [(off_env, off), (on_env, on)] = <[_; 2]>::try_from(runs).ok().expect("two configurations");
+    assert_eq!(
+        *off_env.mock_bank.account_shared_data.read().unwrap(),
+        *on_env.mock_bank.account_shared_data.read().unwrap(),
+        "all final bank accounts are identical"
+    );
+    assert_eq!(
+        *off_env.mock_bank.inspected_accounts.read().unwrap(),
+        *on_env.mock_bank.inspected_accounts.read().unwrap(),
+        "subsequent account loading and inspection are unchanged"
+    );
+    for (off_tx, on_tx) in off.processing_results.iter().zip(&on.processing_results) {
+        let (Ok(ProcessedTransaction::Executed(off_tx)), Ok(ProcessedTransaction::Executed(on_tx))) =
+            (off_tx, on_tx)
+        else {
+            panic!("all three transactions must execute");
+        };
+        assert_eq!(
+            off_tx.loaded_transaction.accounts,
+            on_tx.loaded_transaction.accounts
+        );
+        assert_eq!(
+            off_tx.loaded_transaction.touched_flags,
+            on_tx.loaded_transaction.touched_flags
+        );
+        assert_eq!(
+            off_tx.loaded_transaction.fee_details,
+            on_tx.loaded_transaction.fee_details
+        );
+        assert_eq!(
+            off_tx.loaded_transaction.loaded_accounts_data_size,
+            on_tx.loaded_transaction.loaded_accounts_data_size
+        );
+        assert_eq!(
+            off_tx.execution_details.status,
+            on_tx.execution_details.status
+        );
+        assert_eq!(
+            off_tx.execution_details.executed_units,
+            on_tx.execution_details.executed_units
+        );
+        assert_eq!(
+            off_tx.execution_details.log_messages,
+            on_tx.execution_details.log_messages
+        );
+        assert_eq!(
+            off_tx.execution_details.return_data,
+            on_tx.execution_details.return_data
+        );
+    }
+    let off = off
+        .pre_accounts_collector
+        .expect("disabled derivation still captures base keys")
+        .into_vecs();
+    let on = on
+        .pre_accounts_collector
+        .expect("derived capture")
+        .into_vecs();
+    assert!(!off[1].iter().any(|account| account.pubkey == target));
+    let captured = on[1]
+        .iter()
+        .find(|account| account.pubkey == target)
+        .expect("derived PDA appended");
+    if close {
+        assert_eq!(captured.lamports, 0);
+        assert_eq!(captured.owner, system_program::id());
+        assert_eq!(captured.rent_epoch, 0);
+        assert!(captured.data.is_empty());
+        assert!(!captured.executable);
+    } else {
+        assert_eq!(captured.lamports, target_account.lamports());
+        assert_eq!(captured.owner, program);
+        assert_eq!(
+            captured.data,
+            [100],
+            "T1 sees T0 write, not old Bank data [0]"
+        );
+    }
+    // Base entries retain order and every byte when additional collection is enabled.
+    for (original, copied) in off[1].iter().zip(&on[1]) {
+        assert_eq!(
+            (
+                original.pubkey,
+                original.owner,
+                original.lamports,
+                &original.data,
+                original.executable,
+                original.rent_epoch
+            ),
+            (
+                copied.pubkey,
+                copied.owner,
+                copied.lamports,
+                &copied.data,
+                copied.executable,
+                copied.rent_epoch
+            )
+        );
+    }
+}
+
+#[test]
+fn pre_accounts_derived_failed_lock_check_never_reads_extra_keys() {
+    let whirlpool = solana_pubkey::pubkey!("whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc");
+    let pool = Pubkey::new_unique();
+    let payer = Keypair::new();
+    let mut pool_account = AccountSharedData::new(LAMPORTS_PER_SOL, 653, &whirlpool);
+    pool_account.set_data_from_slice(include_bytes!(
+        "fixtures/pre_accounts_derived/whirlpool0.bin"
+    ));
+    let mut entry = SvmTestEntry::default();
+    entry.add_initial_account(pool, &pool_account);
+    entry.add_initial_account(
+        payer.pubkey(),
+        &AccountSharedData::new(LAMPORTS_PER_SOL, 0, &system_program::id()),
+    );
+    let mut ix = system_instruction::transfer(&payer.pubkey(), &Pubkey::new_unique(), 1);
+    ix.accounts.push(AccountMeta::new(pool, false));
+    entry.push_transaction(Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer],
+        Hash::default(),
+    ));
+    let ids = std::collections::HashSet::from([system_program::id()]);
+    let mut env = SvmTestEnvironment::create(entry);
+    env.processing_config
+        .recording_config
+        .enable_pre_accounts_recording = true;
+    env.processing_config.pre_accounts_program_ids = Some(&ids);
+    env.processing_config.pre_accounts_derivation.whirlpool = true;
+    let (transactions, mut check_results) = env.test_entry.prepare_transactions();
+    assert!(
+        transactions[0]
+            .account_keys()
+            .iter()
+            .enumerate()
+            .any(|(i, key)| *key == pool && transactions[0].is_writable(i))
+    );
+    check_results[0] = Err(TransactionError::AccountInUse);
+    let output = env.batch_processor.load_and_execute_sanitized_transactions(
+        &env.mock_bank,
+        &transactions,
+        check_results,
+        &env.processing_environment,
+        &env.processing_config,
+    );
+    assert!(matches!(
+        &output.processing_results[0],
+        Err(TransactionError::AccountInUse)
+    ));
+    let snapshots = output
+        .pre_accounts_collector
+        .expect("B3 selection still applies")
+        .into_vecs();
+    assert!(
+        snapshots[0].iter().all(|entry| transactions[0]
+            .account_keys()
+            .iter()
+            .any(|key| *key == entry.pubkey)),
+        "writable metadata alone must not authorize derived reads after failed lock acquisition"
+    );
+}

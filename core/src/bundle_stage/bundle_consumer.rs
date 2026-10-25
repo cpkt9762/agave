@@ -46,6 +46,7 @@ pub struct BundleConsumer {
     transaction_recorder: TransactionRecorder,
     log_messages_bytes_limit: Option<usize>,
     pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
+    pre_accounts_derivation: solana_svm::pre_accounts_derived::PreAccountsDerivationConfig,
 }
 
 impl BundleConsumer {
@@ -54,12 +55,14 @@ impl BundleConsumer {
         transaction_recorder: TransactionRecorder,
         log_messages_bytes_limit: Option<usize>,
         pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
+        pre_accounts_derivation: solana_svm::pre_accounts_derived::PreAccountsDerivationConfig,
     ) -> Self {
         Self {
             committer,
             transaction_recorder,
             log_messages_bytes_limit,
             pre_accounts_cpi_program_ids,
+            pre_accounts_derivation,
         }
     }
 
@@ -321,6 +324,7 @@ impl BundleConsumer {
                     check_program_deployment_slot: bank.check_program_deployment_slot(),
                     pre_accounts_program_ids: None,
                     pre_accounts_cpi_program_ids: self.pre_accounts_cpi_program_ids.as_deref(),
+                    pre_accounts_derivation: self.pre_accounts_derivation,
                 }
             )
         );
@@ -607,7 +611,13 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
+        let mut consumer = BundleConsumer::new(
+            committer,
+            recorder,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -674,7 +684,13 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
+        let mut consumer = BundleConsumer::new(
+            committer,
+            recorder,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
 
         let output = consumer.process_and_record_aged_transactions(
             &bank,
@@ -726,7 +742,13 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
+        let mut consumer = BundleConsumer::new(
+            committer,
+            recorder,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -785,7 +807,13 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
+        let mut consumer = BundleConsumer::new(
+            committer,
+            recorder,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -857,7 +885,13 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
+        let mut consumer = BundleConsumer::new(
+            committer,
+            recorder,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -947,6 +981,7 @@ mod tests {
             TransactionRecorder::new(record_sender),
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
         );
 
         let max_ages = [MaxAge::MAX; TEST_BUNDLE_LEN];
@@ -1064,7 +1099,13 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
+        let mut consumer = BundleConsumer::new(
+            committer,
+            recorder,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -1131,7 +1172,13 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
+        let mut consumer = BundleConsumer::new(
+            committer,
+            recorder,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -1213,7 +1260,13 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
+        let mut consumer = BundleConsumer::new(
+            committer,
+            recorder,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -1273,7 +1326,13 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
+        let mut consumer = BundleConsumer::new(
+            committer,
+            recorder,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:

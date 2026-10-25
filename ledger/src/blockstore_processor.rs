@@ -338,6 +338,7 @@ pub struct ProcessOptions {
     pub no_block_cost_limits: bool,
     pub pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
     pub pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
+    pub pre_accounts_derivation: solana_svm::pre_accounts_derived::PreAccountsDerivationConfig,
 }
 
 pub(crate) fn process_blockstore_for_bank_0(

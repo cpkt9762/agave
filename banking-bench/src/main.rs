@@ -478,6 +478,7 @@ fn main() {
         replay_vote_sender,
         None,
         None,
+        solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
         None,
         bank_forks.clone(),
         Some(prioritization_fee_cache),

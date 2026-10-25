@@ -886,6 +886,34 @@ pub fn add_args<'a>(app: App<'a, 'a>, default_args: &'a DefaultArgs) -> App<'a, 
             .help("Collect pre-execution accounts when any resolved account key matches this program ID, even if not invoked. Repeat for multiple CPI programs; default: empty. Existing top-level matching remains enabled."),
     )
     .arg(
+        Arg::with_name("geyser_pre_accounts_derive")
+            .long("geyser-pre-accounts-derive")
+            .value_name("PROTOCOL")
+            .takes_value(true)
+            .multiple(true)
+            .number_of_values(1)
+            .possible_values(&["dlmm", "whirlpool"])
+            .help("Append pool-derived pre-execution accounts to already selected transactions. Requires a writable pool reference. Repeat for dlmm and whirlpool; default: empty (disabled)."),
+    )
+    .arg(
+        Arg::with_name("geyser_pre_accounts_derived_max_keys")
+            .long("geyser-pre-accounts-derived-max-keys")
+            .value_name("COUNT")
+            .takes_value(true)
+            .default_value("32")
+            .validator(is_parsable::<usize>)
+            .help("Maximum additional derived keys per transaction. Reject the whole pool on overflow; zero rejects all extra keys."),
+    )
+    .arg(
+        Arg::with_name("geyser_pre_accounts_derived_max_bytes")
+            .long("geyser-pre-accounts-derived-max-bytes")
+            .value_name("BYTES")
+            .takes_value(true)
+            .default_value("131072")
+            .validator(is_parsable::<usize>)
+            .help("Maximum derived account data plus entry storage bytes per transaction. Reject the whole pool on overflow; zero rejects all extra accounts."),
+    )
+    .arg(
         Arg::with_name("geyser_plugin_always_enabled")
             .long("geyser-plugin-always-enabled")
             .value_name("BOOLEAN")

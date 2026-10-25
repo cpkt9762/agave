@@ -157,6 +157,7 @@ pub struct TransactionProcessingConfig<'a> {
 
     pub pre_accounts_program_ids: Option<&'a HashSet<Pubkey>>,
     pub pre_accounts_cpi_program_ids: Option<&'a HashSet<Pubkey>>,
+    pub pre_accounts_derivation: crate::pre_accounts_derived::PreAccountsDerivationConfig,
 }
 
 /// Runtime environment for transaction batch processing.
@@ -520,6 +521,12 @@ impl<FG: ForkGraph> TransactionBatchProcessor<FG> {
         // in the same batch may modify the same accounts. Transaction order is
         // preserved within entries written to the ledger.
         for (tx, check_result) in sanitized_txs.iter().zip(check_results) {
+            let derivation = if check_result.is_ok() {
+                config.pre_accounts_derivation
+            } else {
+                // A failed lock/check result cannot establish the pool lock barrier.
+                crate::pre_accounts_derived::PreAccountsDerivationConfig::default()
+            };
             let (validate_result, validate_fees_us) = measure_us!(match check_result {
                 Ok(tx_details) => Self::validate_transaction_nonce_and_fee_payer(
                     &mut account_loader,
@@ -556,6 +563,7 @@ impl<FG: ForkGraph> TransactionBatchProcessor<FG> {
                 tx,
                 pre_accounts_program_ids,
                 config.pre_accounts_cpi_program_ids,
+                &derivation,
             );
 
             let (processing_result, single_execution_us) = measure_us!(match load_result {

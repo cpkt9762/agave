@@ -830,6 +830,7 @@ impl BankingSimulator {
             None,
             None,
             None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             bank_forks.clone(),
             agave_votor::slot_clock::SharedAlpenglowSlotClock::default(),
             None,

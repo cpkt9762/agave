@@ -8,6 +8,7 @@ pub mod account_overrides;
 pub mod conformance;
 pub mod nonce_info;
 pub mod pre_accounts_collector;
+pub mod pre_accounts_derived;
 pub mod program_loader;
 pub mod rent_calculator;
 pub mod rollback_accounts;

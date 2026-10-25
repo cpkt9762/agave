@@ -647,7 +647,14 @@ mod tests {
 
         let (replay_vote_sender, _replay_vote_receiver) = bounded(1024);
         let committer = Committer::new(None, replay_vote_sender, None);
-        let consumer = Consumer::new(committer, recorder, None, None, None);
+        let consumer = Consumer::new(
+            committer,
+            recorder,
+            None,
+            None,
+            None,
+            solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
 
         // Create and process a simple transfer transaction
         let pubkey = solana_pubkey::new_rand();
@@ -720,6 +727,7 @@ mod tests {
                 None,
                 None,
                 None,
+                solana_svm::pre_accounts_derived::PreAccountsDerivationConfig::default(),
             ),
             BundleAccountLocker::default(),
         );

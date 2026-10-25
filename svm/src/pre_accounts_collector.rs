@@ -31,6 +31,7 @@ pub(crate) trait PreAccountsCollectionRoutines {
         transaction: &impl SVMTransaction,
         program_ids: Option<&HashSet<Pubkey>>,
         cpi_program_ids: Option<&HashSet<Pubkey>>,
+        derivation: &crate::pre_accounts_derived::PreAccountsDerivationConfig,
     );
 
     fn push_empty(&mut self);
@@ -64,6 +65,7 @@ impl PreAccountsCollectionRoutines for PreAccountsCollector {
         transaction: &impl SVMTransaction,
         program_ids: Option<&HashSet<Pubkey>>,
         cpi_program_ids: Option<&HashSet<Pubkey>>,
+        derivation: &crate::pre_accounts_derived::PreAccountsDerivationConfig,
     ) {
         let has_matching_program = program_ids.is_some_and(|ids| {
             transaction
@@ -100,6 +102,12 @@ impl PreAccountsCollectionRoutines for PreAccountsCollector {
             }
         }
 
+        crate::pre_accounts_derived::append_derived_accounts(
+            &*account_loader,
+            transaction,
+            &mut tx_pre_accounts,
+            derivation,
+        );
         self.pre_accounts.push(tx_pre_accounts);
     }
 
@@ -115,9 +123,16 @@ impl PreAccountsCollectionRoutines for Option<PreAccountsCollector> {
         transaction: &impl SVMTransaction,
         program_ids: Option<&HashSet<Pubkey>>,
         cpi_program_ids: Option<&HashSet<Pubkey>>,
+        derivation: &crate::pre_accounts_derived::PreAccountsDerivationConfig,
     ) {
         if let Some(inner) = self {
-            inner.collect_pre_accounts(account_loader, transaction, program_ids, cpi_program_ids)
+            inner.collect_pre_accounts(
+                account_loader,
+                transaction,
+                program_ids,
+                cpi_program_ids,
+                derivation,
+            )
         }
     }
 
@@ -203,10 +218,17 @@ mod tests {
             &transaction,
             top.then_some(&top_ids),
             (cpi || empty).then_some(&cpi_ids),
+            &crate::pre_accounts_derived::PreAccountsDerivationConfig::default(),
         );
         // An unregistered key never matches and must still append an empty vec.
         let other_ids = HashSet::from([Pubkey::new_unique()]);
-        collector.collect_pre_accounts(&mut loader, &transaction, None, Some(&other_ids));
+        collector.collect_pre_accounts(
+            &mut loader,
+            &transaction,
+            None,
+            Some(&other_ids),
+            &crate::pre_accounts_derived::PreAccountsDerivationConfig::default(),
+        );
         let snapshots = collector.into_vecs();
         assert_eq!(snapshots.len(), 2);
         assert!(snapshots[1].is_empty());
@@ -277,6 +299,7 @@ mod tests {
             &transaction,
             None,
             Some(&HashSet::from([target])),
+            &crate::pre_accounts_derived::PreAccountsDerivationConfig::default(),
         );
         assert_eq!(collector.into_vecs()[0][0].lamports, 42);
     }

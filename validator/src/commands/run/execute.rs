@@ -746,6 +746,7 @@ pub fn execute(
         None
     };
     let pre_accounts_cpi_program_ids = parse_pre_accounts_cpi_program_ids(matches)?;
+    let pre_accounts_derivation = parse_pre_accounts_derivation(matches)?;
     let starting_with_geyser_plugins: bool = on_start_geyser_plugin_config_files.is_some()
         || matches.is_present("geyser_plugin_always_enabled");
 
@@ -875,6 +876,7 @@ pub fn execute(
         rpc_config: run_args.json_rpc_config,
         on_start_geyser_plugin_config_files,
         pre_accounts_cpi_program_ids,
+        pre_accounts_derivation,
         geyser_plugin_always_enabled: matches.is_present("geyser_plugin_always_enabled"),
         rpc_addrs: value_t!(matches, "rpc_port", u16).ok().map(|rpc_port| {
             (
@@ -1694,6 +1696,19 @@ fn tip_manager_config_from_matches(
     }
 }
 
+fn parse_pre_accounts_derivation(
+    matches: &ArgMatches,
+) -> Result<solana_core::validator::PreAccountsDerivationConfig, clap::Error> {
+    let protocols = matches.values_of("geyser_pre_accounts_derive");
+    let protocols: HashSet<_> = protocols.into_iter().flatten().collect();
+    Ok(solana_core::validator::PreAccountsDerivationConfig {
+        dlmm: protocols.contains("dlmm"),
+        whirlpool: protocols.contains("whirlpool"),
+        max_keys: value_t!(matches, "geyser_pre_accounts_derived_max_keys", usize)?,
+        max_bytes: value_t!(matches, "geyser_pre_accounts_derived_max_bytes", usize)?,
+    })
+}
+
 fn parse_pre_accounts_cpi_program_ids(
     matches: &ArgMatches,
 ) -> Result<Option<Arc<HashSet<Pubkey>>>, clap::Error> {
@@ -1707,6 +1722,61 @@ fn parse_pre_accounts_cpi_program_ids(
 #[cfg(test)]
 mod pre_accounts_cpi_tests {
     use super::*;
+
+    #[test]
+    fn pre_accounts_derived_cli_defaults_repeat_limits_and_help() {
+        let defaults = crate::cli::DefaultArgs::default();
+        let app = super::super::args::add_args(clap::App::new("agave-validator"), &defaults);
+        let matches = app
+            .clone()
+            .get_matches_from_safe(["agave-validator"])
+            .expect("default CLI");
+        let config = parse_pre_accounts_derivation(&matches).expect("default policy");
+        assert_eq!(
+            config,
+            solana_core::validator::PreAccountsDerivationConfig::default()
+        );
+        let matches = app
+            .clone()
+            .get_matches_from_safe([
+                "agave-validator",
+                "--geyser-pre-accounts-derive",
+                "dlmm",
+                "--geyser-pre-accounts-derive",
+                "whirlpool",
+                "--geyser-pre-accounts-derive",
+                "dlmm",
+                "--geyser-pre-accounts-derived-max-keys",
+                "12",
+                "--geyser-pre-accounts-derived-max-bytes",
+                "4096",
+            ])
+            .expect("repeat and explicit limits");
+        let config = parse_pre_accounts_derivation(&matches).expect("explicit policy");
+        assert!(config.dlmm && config.whirlpool);
+        assert_eq!((config.max_keys, config.max_bytes), (12, 4096));
+        for (arg, bad) in [
+            ("--geyser-pre-accounts-derive", "unknown"),
+            ("--geyser-pre-accounts-derived-max-keys", "-1"),
+            ("--geyser-pre-accounts-derived-max-bytes", "overflow"),
+        ] {
+            assert!(
+                app.clone()
+                    .get_matches_from_safe(["agave-validator", arg, bad])
+                    .is_err()
+            );
+        }
+        let mut bytes = Vec::new();
+        app.clone()
+            .write_long_help(&mut bytes)
+            .expect("CLI help renders");
+        let help = String::from_utf8(bytes).expect("UTF-8 help");
+        assert!(help.contains("--geyser-pre-accounts-derive <PROTOCOL>..."));
+        assert!(help.contains("--geyser-pre-accounts-derived-max-keys <COUNT>"));
+        assert!(help.contains("--geyser-pre-accounts-derived-max-bytes <BYTES>"));
+        assert!(help.contains("default: empty (disabled)"));
+        print!("{help}");
+    }
 
     #[test]
     fn test_pre_accounts_cpi_cli_default_repeat_invalid_and_help() {
