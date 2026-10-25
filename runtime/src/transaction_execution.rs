@@ -16,7 +16,7 @@ use {
     solana_runtime_transaction::transaction_with_meta::TransactionWithMeta,
     solana_signature::Signature,
     solana_svm::{
-        pre_accounts_collector::{PreAccountEntry, PreAccountsCollector},
+        pre_accounts_collector::{PreAccountEntry, PreAccountsCollector, pre_accounts_enabled},
         transaction_commit_result::{
             TransactionCommitResult, TransactionCommitResultExtensions as _,
         },
@@ -57,6 +57,7 @@ pub struct TransactionBatchWithIndexes<'a, 'b, Tx: SVMMessage> {
     pub transaction_indexes: Vec<usize>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn execute_batch<'a>(
     batch: &'a TransactionBatchWithIndexes<impl TransactionWithMeta>,
     bank: &'a Arc<Bank>,
@@ -66,6 +67,7 @@ pub fn execute_batch<'a>(
     timings: &'a mut ExecuteTimings,
     log_messages_bytes_limit: Option<usize>,
     pre_accounts_program_ids: Option<&'a HashSet<Pubkey>>,
+    pre_accounts_cpi_program_ids: Option<&'a HashSet<Pubkey>>,
     prioritization_fee_cache: Option<&'a PrioritizationFeeCache>,
 ) -> TransactionResult<()> {
     let TransactionBatchWithIndexes {
@@ -85,7 +87,10 @@ pub fn execute_batch<'a>(
         enable_log_recording: transaction_status_sender.is_some(),
         enable_return_data_recording: transaction_status_sender.is_some(),
         enable_transaction_balance_recording: transaction_status_sender.is_some(),
-        enable_pre_accounts_recording: pre_accounts_program_ids.is_some(),
+        enable_pre_accounts_recording: pre_accounts_enabled(
+            pre_accounts_program_ids,
+            pre_accounts_cpi_program_ids,
+        ),
     };
     let (commit_results, balance_collector, pre_accounts_collector) = batch
         .bank()
@@ -95,6 +100,7 @@ pub fn execute_batch<'a>(
             timings,
             log_messages_bytes_limit,
             pre_accounts_program_ids,
+            pre_accounts_cpi_program_ids,
             pre_commit_callback,
         )?;
 
@@ -144,7 +150,7 @@ pub fn execute_batch<'a>(
             compile_collected_balances(balance_collector.unwrap_or_default());
         let mut pre_accounts = compile_pre_accounts(pre_accounts_collector);
         // Ensure pre_accounts length matches transactions length.
-        // When pre_accounts_program_ids is None (e.g. unified scheduler path),
+        // When both snapshot policies are disabled,
         // compile_pre_accounts returns an empty vec. izip! takes the shortest
         // iterator, so an empty pre_accounts would skip ALL transactions in
         // TransactionStatusService::write_transaction_status_batch, preventing
@@ -340,6 +346,74 @@ mod tests {
         test_case::test_matrix,
     };
 
+    #[test_matrix([false, true], [false, true])]
+    fn test_pre_accounts_cpi_execute_batch_enablement(top: bool, cpi: bool) {
+        let GenesisConfigInfo {
+            genesis_config,
+            mint_keypair,
+            ..
+        } = create_genesis_config_with_leader(1_000_000_000, &Pubkey::new_unique(), 100);
+        let bank = Bank::new_for_tests(&genesis_config);
+        let (bank, _bank_forks) = bank.wrap_with_bank_forks_for_tests();
+        let bank = Arc::new(bank);
+        let tx = system_transaction::transfer(
+            &mint_keypair,
+            &Pubkey::new_unique(),
+            1,
+            genesis_config.hash(),
+        );
+        let program =
+            tx.message.account_keys[usize::from(tx.message.instructions[0].program_id_index)];
+        let payer = tx.message.account_keys[0];
+        let tx = RuntimeTransaction::from_transaction_for_tests(tx);
+        let batch = TransactionBatchWithIndexes {
+            batch: bank.prepare_unlocked_batch_from_single_tx(&tx),
+            transaction_indexes: vec![5],
+        };
+        let ids = HashSet::from([program]);
+        let (sender, receiver) = bounded(1);
+        let status_sender = TransactionStatusSender {
+            sender,
+            dependency_tracker: None,
+        };
+        execute_batch(
+            &batch,
+            &bank,
+            Some(&status_sender),
+            None,
+            ReplayVoteSendType::VerifiedExecuted,
+            &mut ExecuteTimings::default(),
+            None,
+            top.then_some(&ids),
+            cpi.then_some(&ids),
+            None,
+        )
+        .expect("transfer executes with every capture configuration");
+        let TransactionStatusMessage::Batch((status, _)) =
+            receiver.try_recv().expect("status batch emitted")
+        else {
+            panic!("expected batch")
+        };
+        assert_eq!(status.transaction_indexes, vec![5]);
+        assert_eq!(
+            status.pre_accounts.len(),
+            1,
+            "disabled capture retains transaction alignment"
+        );
+        assert_eq!(status.pre_accounts[0].is_empty(), !(top || cpi));
+        if top || cpi {
+            assert_eq!(
+                status.pre_accounts[0]
+                    .iter()
+                    .filter(|account| account.pubkey == payer)
+                    .count(),
+                1
+            );
+        }
+        assert_eq!(bank.transaction_count(), 1);
+        assert_eq!(bank.transaction_error_count(), 0);
+    }
+
     #[test]
     fn test_check_block_cost_limit() {
         let dummy_leader_pubkey = solana_pubkey::new_rand();
@@ -507,6 +581,7 @@ mod tests {
             None,
             ReplayVoteSendType::VerifiedExecuted,
             &mut timing,
+            None,
             None,
             None,
             None,

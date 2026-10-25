@@ -189,6 +189,7 @@ fn main() {
         replay_vote_sender,
         None,
         None,
+        None,
         bank_forks.clone(),
         agave_votor::slot_clock::SharedAlpenglowSlotClock::default(),
         Some(prioritization_fee_cache),

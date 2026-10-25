@@ -111,6 +111,7 @@ pub struct Consumer {
     transaction_recorder: TransactionRecorder,
     log_messages_bytes_limit: Option<usize>,
     pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
+    pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
 }
 
 impl Consumer {
@@ -119,12 +120,14 @@ impl Consumer {
         transaction_recorder: TransactionRecorder,
         log_messages_bytes_limit: Option<usize>,
         pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
+        pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
     ) -> Self {
         Self {
             committer,
             transaction_recorder,
             log_messages_bytes_limit,
             pre_accounts_program_ids,
+            pre_accounts_cpi_program_ids,
         }
     }
 
@@ -443,8 +446,8 @@ impl Consumer {
             .pre_accounts_program_ids
             .as_ref()
             .map(|swap| swap.load_full());
-        let (load_and_execute_transactions_output, load_execute_us) = measure_us!(bank
-            .load_and_execute_transactions(
+        let (load_and_execute_transactions_output, load_execute_us) = measure_us!(
+            bank.load_and_execute_transactions(
                 batch,
                 bank.max_processing_age(),
                 &mut execute_and_commit_timings.execute_timings,
@@ -461,15 +464,21 @@ impl Consumer {
                         enable_transaction_balance_recording: transaction_status_sender_enabled,
                         enable_pre_accounts_recording: pre_accounts_guard
                             .as_ref()
-                            .map_or(false, |g| !g.is_empty()),
+                            .is_some_and(|g| !g.is_empty())
+                            || self
+                                .pre_accounts_cpi_program_ids
+                                .as_ref()
+                                .is_some_and(|ids| !ids.is_empty()),
                     },
                     drop_on_failure: flags.drop_on_failure,
                     all_or_nothing: flags.all_or_nothing,
                     strict_nonce_size_check: true,
                     drop_noop_transactions: true,
                     pre_accounts_program_ids: pre_accounts_guard.as_deref(),
+                    pre_accounts_cpi_program_ids: self.pre_accounts_cpi_program_ids.as_deref(),
                 }
-            ));
+            )
+        );
         execute_and_commit_timings.load_execute_us = load_execute_us;
         let successful_count = load_and_execute_transactions_output
             .processed_counts
@@ -751,7 +760,7 @@ mod tests {
 
         let (replay_vote_sender, _replay_vote_receiver) = bounded(1024);
         let committer = Committer::new(transaction_status_sender, replay_vote_sender, None);
-        let consumer = Consumer::new(committer, recorder, None, None);
+        let consumer = Consumer::new(committer, recorder, None, None, None);
 
         TestFrame {
             mint_keypair,
@@ -776,7 +785,7 @@ mod tests {
 
         let (replay_vote_sender, _replay_vote_receiver) = bounded(1024);
         let committer = Committer::new(None, replay_vote_sender, None);
-        let consumer = Consumer::new(committer, recorder, None, None);
+        let consumer = Consumer::new(committer, recorder, None, None, None);
         consumer.process_and_record_transactions(
             &bank,
             &transactions,
@@ -1862,7 +1871,7 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let consumer = Consumer::new(committer, recorder.clone(), None, None);
+        let consumer = Consumer::new(committer, recorder.clone(), None, None, None);
 
         let process_transactions_summary = consumer.process_and_record_transactions(
             &bank,

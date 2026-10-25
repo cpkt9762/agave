@@ -341,6 +341,7 @@ pub struct ValidatorConfig {
     /// Specifies which plugins to start up with
     pub on_start_geyser_plugin_config_files: Option<Vec<PathBuf>>,
     pub geyser_plugin_always_enabled: bool,
+    pub pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
     pub rpc_addrs: Option<(SocketAddr, SocketAddr)>, // (JsonRpc, JsonRpcPubSub)
     pub pubsub_config: PubSubConfig,
     pub snapshot_config: SnapshotConfig,
@@ -448,6 +449,7 @@ impl ValidatorConfig {
             rpc_config: JsonRpcConfig::default_for_test(),
             on_start_geyser_plugin_config_files: None,
             geyser_plugin_always_enabled: false,
+            pre_accounts_cpi_program_ids: None,
             rpc_addrs: None,
             pubsub_config: PubSubConfig::default_for_tests(),
             snapshot_config: SnapshotConfig::new_load_only(),
@@ -895,6 +897,11 @@ impl Validator {
             } else {
                 None
             };
+        let pre_accounts_cpi_program_ids = config.pre_accounts_cpi_program_ids.clone();
+        info!(
+            "Geyser pre-accounts selection: top-level registry OR CPI account-key whitelist; CPI program IDs: {:?}",
+            pre_accounts_cpi_program_ids,
+        );
         let pre_accounts_program_ids = geyser_plugin_service.as_ref().and_then(|service| {
             if let Some(shared) = service.get_pre_accounts_program_ids_shared() {
                 Some(shared)
@@ -1023,6 +1030,7 @@ impl Validator {
             transaction_notifier,
             entry_notifier,
             pre_accounts_program_ids.clone(),
+            pre_accounts_cpi_program_ids.clone(),
             config
                 .rpc_addrs
                 .is_some()
@@ -1206,6 +1214,7 @@ impl Validator {
             Some(replay_vote_sender.clone()),
             prioritization_fee_cache.clone(),
             pre_accounts_program_ids.clone(),
+            pre_accounts_cpi_program_ids.clone(),
         );
         bank_forks
             .write()
@@ -1861,6 +1870,7 @@ impl Validator {
             bank_notification_sender_config,
             duplicate_confirmed_slot_sender,
             pre_accounts_program_ids.clone(),
+            pre_accounts_cpi_program_ids.clone(),
             tpu_forwarding_client_config,
             &identity_keypair,
             config.runtime_config.log_messages_bytes_limit,
@@ -2503,6 +2513,7 @@ fn load_blockstore(
     transaction_notifier: Option<TransactionNotifierArc>,
     entry_notifier: Option<EntryNotifierArc>,
     pre_accounts_program_ids: Option<Arc<ArcSwap<HashSet<Pubkey>>>>,
+    pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
     dependency_tracker: Option<Arc<DependencyTracker>>,
 ) -> Result<
     (
@@ -2535,6 +2546,7 @@ fn load_blockstore(
         runtime_config: config.runtime_config.clone(),
         use_snapshot_archives_at_startup: config.use_snapshot_archives_at_startup,
         pre_accounts_program_ids,
+        pre_accounts_cpi_program_ids,
         ..blockstore_processor::ProcessOptions::default()
     };
 

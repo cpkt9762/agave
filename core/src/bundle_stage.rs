@@ -340,6 +340,7 @@ impl BundleStage {
         transaction_status_sender: Option<TransactionStatusSender>,
         replay_vote_sender: ReplayVoteSender,
         log_messages_bytes_limit: Option<usize>,
+        pre_accounts_cpi_program_ids: Option<Arc<std::collections::HashSet<Pubkey>>>,
         exit: Arc<AtomicBool>,
         tip_manager: TipManager,
         bundle_account_locker: BundleAccountLocker,
@@ -358,6 +359,7 @@ impl BundleStage {
             transaction_status_sender,
             replay_vote_sender,
             log_messages_bytes_limit,
+            pre_accounts_cpi_program_ids,
             exit,
             tip_manager,
             bundle_account_locker,
@@ -383,6 +385,7 @@ impl BundleStage {
         transaction_status_sender: Option<TransactionStatusSender>,
         replay_vote_sender: ReplayVoteSender,
         log_message_bytes_limit: Option<usize>,
+        pre_accounts_cpi_program_ids: Option<Arc<std::collections::HashSet<Pubkey>>>,
         exit: Arc<AtomicBool>,
         tip_manager: TipManager,
         bundle_account_locker: BundleAccountLocker,
@@ -403,8 +406,12 @@ impl BundleStage {
             alpenglow_slot_clock,
         );
 
-        let consumer =
-            BundleConsumer::new(committer, transaction_recorder, log_message_bytes_limit);
+        let consumer = BundleConsumer::new(
+            committer,
+            transaction_recorder,
+            log_message_bytes_limit,
+            pre_accounts_cpi_program_ids,
+        );
 
         let block_builder_fee_info = block_builder_fee_info.clone();
         let cluster_info = cluster_info.clone();
@@ -1142,6 +1149,7 @@ mod tests {
             Committer::new(None, replay_vote_sender, None),
             TransactionRecorder::new(record_sender),
             None,
+            None,
         );
         let mut metrics = BundleStageLoopMetrics::default();
         let mut last_tip_update_slot = Slot::MAX;
@@ -1182,8 +1190,12 @@ mod tests {
         let (record_sender, _record_receiver) = solana_poh::record_channels::record_channels(false);
         let (replay_vote_sender, _replay_vote_receiver) = unbounded();
         let committer = Committer::new(None, replay_vote_sender, None);
-        let mut consumer =
-            BundleConsumer::new(committer, TransactionRecorder::new(record_sender), None);
+        let mut consumer = BundleConsumer::new(
+            committer,
+            TransactionRecorder::new(record_sender),
+            None,
+            None,
+        );
 
         let result = BundleStage::handle_crank_tip_programs(
             &bank,
@@ -1380,6 +1392,7 @@ mod tests {
             None,
             replay_vote_sender,
             None,
+            None,
             exit.clone(),
             TipManager::new(TipManagerConfig {
                 tip_payment_program_id: Pubkey::from(jito_tip_payment::id().to_bytes()),
@@ -1520,6 +1533,7 @@ mod tests {
             None,
             replay_vote_sender,
             None,
+            None,
             exit.clone(),
             TipManager::new(TipManagerConfig {
                 tip_payment_program_id: Pubkey::from(jito_tip_payment::id().to_bytes()),
@@ -1611,6 +1625,7 @@ mod tests {
             verified_bundle_receiver,
             None,
             replay_vote_sender,
+            None,
             None,
             exit.clone(),
             TipManager::new(TipManagerConfig {
@@ -1730,6 +1745,7 @@ mod tests {
             None,
             replay_vote_sender,
             None,
+            None,
             exit.clone(),
             TipManager::new(TipManagerConfig {
                 tip_payment_program_id: Pubkey::from(jito_tip_payment::id().to_bytes()),
@@ -1846,6 +1862,7 @@ mod tests {
             verified_bundle_receiver,
             None,
             replay_vote_sender,
+            None,
             None,
             exit.clone(),
             TipManager::new(TipManagerConfig {

@@ -17,6 +17,7 @@ use {
         poh_recorder::PohRecorderError,
         transaction_recorder::{RecordTransactionsTimings, TransactionRecorder},
     },
+    solana_pubkey::Pubkey,
     solana_runtime::{
         bank::{
             Bank, LoadAndExecuteTransactionsOutput, entry_bytes_budget::EntryBytesReserveError,
@@ -30,8 +31,10 @@ use {
     },
     solana_transaction::TransactionError,
     std::{
+        collections::HashSet,
         iter::repeat,
         num::Saturating,
+        sync::Arc,
         thread::sleep,
         time::{Duration, Instant},
         vec,
@@ -42,6 +45,7 @@ pub struct BundleConsumer {
     committer: Committer,
     transaction_recorder: TransactionRecorder,
     log_messages_bytes_limit: Option<usize>,
+    pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
 }
 
 impl BundleConsumer {
@@ -49,11 +53,13 @@ impl BundleConsumer {
         committer: Committer,
         transaction_recorder: TransactionRecorder,
         log_messages_bytes_limit: Option<usize>,
+        pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
     ) -> Self {
         Self {
             committer,
             transaction_recorder,
             log_messages_bytes_limit,
+            pre_accounts_cpi_program_ids,
         }
     }
 
@@ -289,8 +295,8 @@ impl BundleConsumer {
 
         let mut error_counters = TransactionErrorMetrics::default();
 
-        let (load_and_execute_transactions_output, load_execute_us) =
-            measure_us!(bank.load_and_execute_transactions(
+        let (load_and_execute_transactions_output, load_execute_us) = measure_us!(
+            bank.load_and_execute_transactions(
                 batch,
                 MAX_PROCESSING_AGE,
                 &mut execute_and_commit_timings.execute_timings,
@@ -299,17 +305,25 @@ impl BundleConsumer {
                     account_overrides: None,
                     log_messages_bytes_limit: self.log_messages_bytes_limit,
                     limit_to_load_programs: true,
-                    recording_config: ExecutionRecordingConfig::new_single_setting(
-                        transaction_status_sender_enabled
-                    ),
+                    recording_config: ExecutionRecordingConfig {
+                        enable_pre_accounts_recording: self
+                            .pre_accounts_cpi_program_ids
+                            .as_ref()
+                            .is_some_and(|ids| !ids.is_empty()),
+                        ..ExecutionRecordingConfig::new_single_setting(
+                            transaction_status_sender_enabled
+                        )
+                    },
                     drop_on_failure: true,
                     all_or_nothing: true,
                     strict_nonce_size_check: true,
                     drop_noop_transactions: true,
                     check_program_deployment_slot: bank.check_program_deployment_slot(),
                     pre_accounts_program_ids: None,
+                    pre_accounts_cpi_program_ids: self.pre_accounts_cpi_program_ids.as_deref(),
                 }
-            ));
+            )
+        );
         execute_and_commit_timings.load_execute_us = load_execute_us;
 
         let LoadAndExecuteTransactionsOutput {
@@ -593,7 +607,7 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None);
+        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -660,7 +674,7 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None);
+        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
 
         let output = consumer.process_and_record_aged_transactions(
             &bank,
@@ -712,7 +726,7 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None);
+        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -771,7 +785,7 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None);
+        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -843,7 +857,7 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None);
+        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -928,8 +942,12 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer =
-            BundleConsumer::new(committer, TransactionRecorder::new(record_sender), None);
+        let mut consumer = BundleConsumer::new(
+            committer,
+            TransactionRecorder::new(record_sender),
+            None,
+            None,
+        );
 
         let max_ages = [MaxAge::MAX; TEST_BUNDLE_LEN];
         let ProcessTransactionBatchOutput {
@@ -1046,7 +1064,7 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None);
+        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -1113,7 +1131,7 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None);
+        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -1195,7 +1213,7 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None);
+        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:
@@ -1255,7 +1273,7 @@ mod tests {
             replay_vote_sender,
             Some(Arc::new(PrioritizationFeeCache::new(0u64))),
         );
-        let mut consumer = BundleConsumer::new(committer, recorder, None);
+        let mut consumer = BundleConsumer::new(committer, recorder, None, None);
 
         let ProcessTransactionBatchOutput {
             execute_and_commit_transactions_output:

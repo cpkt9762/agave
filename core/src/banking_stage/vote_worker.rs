@@ -647,7 +647,7 @@ mod tests {
 
         let (replay_vote_sender, _replay_vote_receiver) = bounded(1024);
         let committer = Committer::new(None, replay_vote_sender, None);
-        let consumer = Consumer::new(committer, recorder, None, None);
+        let consumer = Consumer::new(committer, recorder, None, None, None);
 
         // Create and process a simple transfer transaction
         let pubkey = solana_pubkey::new_rand();
@@ -717,6 +717,7 @@ mod tests {
             Consumer::new(
                 Committer::new(None, bounded(1).0, None),
                 solana_poh::transaction_recorder::TransactionRecorder::new(record_sender),
+                None,
                 None,
                 None,
             ),

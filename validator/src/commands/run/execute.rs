@@ -745,6 +745,7 @@ pub fn execute(
     } else {
         None
     };
+    let pre_accounts_cpi_program_ids = parse_pre_accounts_cpi_program_ids(matches)?;
     let starting_with_geyser_plugins: bool = on_start_geyser_plugin_config_files.is_some()
         || matches.is_present("geyser_plugin_always_enabled");
 
@@ -873,6 +874,7 @@ pub fn execute(
         },
         rpc_config: run_args.json_rpc_config,
         on_start_geyser_plugin_config_files,
+        pre_accounts_cpi_program_ids,
         geyser_plugin_always_enabled: matches.is_present("geyser_plugin_always_enabled"),
         rpc_addrs: value_t!(matches, "rpc_port", u16).ok().map(|rpc_port| {
             (
@@ -1689,5 +1691,74 @@ fn tip_manager_config_from_matches(
             commission_bps: value_t!(matches, "commission_bps", u16)
                 .expect("--commission-bps argument required when validator is voting"),
         },
+    }
+}
+
+fn parse_pre_accounts_cpi_program_ids(
+    matches: &ArgMatches,
+) -> Result<Option<Arc<HashSet<Pubkey>>>, clap::Error> {
+    if !matches.is_present("geyser_pre_accounts_cpi_program_id") {
+        return Ok(None);
+    }
+    let ids = values_t!(matches, "geyser_pre_accounts_cpi_program_id", Pubkey)?;
+    Ok(Some(Arc::new(ids.into_iter().collect())))
+}
+
+#[cfg(test)]
+mod pre_accounts_cpi_tests {
+    use super::*;
+
+    #[test]
+    fn test_pre_accounts_cpi_cli_default_repeat_invalid_and_help() {
+        let defaults = crate::cli::DefaultArgs::default();
+        let app = super::super::args::add_args(clap::App::new("agave-validator"), &defaults);
+        let matches = app
+            .clone()
+            .get_matches_from_safe(vec!["agave-validator"])
+            .expect("default CLI parses");
+        assert!(
+            parse_pre_accounts_cpi_program_ids(&matches)
+                .expect("default policy parses")
+                .is_none()
+        );
+        let programs = [
+            "Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB",
+            "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+            "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+            "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+            "MNFSTqtC93rEfYHB6hF82sKdZpUDFWkViLByLd1k1Ms",
+        ];
+        let mut argv = vec!["agave-validator"];
+        for program in programs.iter().chain(programs.first()) {
+            argv.extend(["--geyser-pre-accounts-cpi-program-id", program]);
+        }
+        let matches = app
+            .clone()
+            .get_matches_from_safe(argv)
+            .expect("repeated CPI program flags parse");
+        let parsed = parse_pre_accounts_cpi_program_ids(&matches)
+            .expect("valid pubkeys parse")
+            .expect("explicit whitelist");
+        assert_eq!(parsed.len(), 5, "duplicates removed");
+        for program in programs {
+            assert!(parsed.contains(&program.parse().expect("valid fixture pubkey")));
+        }
+        assert!(
+            app.clone()
+                .get_matches_from_safe(vec![
+                    "agave-validator",
+                    "--geyser-pre-accounts-cpi-program-id",
+                    "invalid-pubkey"
+                ])
+                .is_err()
+        );
+        let mut help = Vec::new();
+        app.clone()
+            .write_long_help(&mut help)
+            .expect("help renders");
+        let help = String::from_utf8(help).expect("UTF-8 CLI help");
+        assert!(help.contains("--geyser-pre-accounts-cpi-program-id <PUBKEY>..."));
+        assert!(help.contains("default: empty"));
+        print!("{help}");
     }
 }

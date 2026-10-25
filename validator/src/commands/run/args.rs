@@ -876,6 +876,16 @@ pub fn add_args<'a>(app: App<'a, 'a>, default_args: &'a DefaultArgs) -> App<'a, 
             .help("Specify the configuration file for the Geyser plugin."),
     )
     .arg(
+        Arg::with_name("geyser_pre_accounts_cpi_program_id")
+            .long("geyser-pre-accounts-cpi-program-id")
+            .value_name("PUBKEY")
+            .takes_value(true)
+            .multiple(true)
+            .number_of_values(1)
+            .validator(is_pubkey)
+            .help("Collect pre-execution accounts when any resolved account key matches this program ID, even if not invoked. Repeat for multiple CPI programs; default: empty. Existing top-level matching remains enabled."),
+    )
+    .arg(
         Arg::with_name("geyser_plugin_always_enabled")
             .long("geyser-plugin-always-enabled")
             .value_name("BOOLEAN")

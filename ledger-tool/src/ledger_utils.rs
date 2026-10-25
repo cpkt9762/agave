@@ -420,6 +420,7 @@ pub fn load_and_process_ledger(
                 no_replay_vote_sender,
                 no_prioritization_fee_cache,
                 process_options.pre_accounts_program_ids.clone(),
+                None, // CPI capture is only configured by the validator CLI.
             );
             bank_forks
                 .write()

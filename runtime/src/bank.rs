@@ -3907,6 +3907,7 @@ impl Bank {
                 strict_nonce_size_check: true,
                 drop_noop_transactions: true,
                 pre_accounts_program_ids: None,
+                pre_accounts_cpi_program_ids: None,
             },
         );
 
@@ -4094,6 +4095,7 @@ impl Bank {
                     drop_noop_transactions: true,
                     check_program_deployment_slot: self.check_program_deployment_slot,
                     pre_accounts_program_ids: None,
+                    pre_accounts_cpi_program_ids: None,
                 },
                 &mut program_cache_for_tx_batch,
                 false,
@@ -4917,6 +4919,7 @@ impl Bank {
             timings,
             log_messages_bytes_limit,
             None,
+            None,
             None::<fn(&_) -> _>,
         )
         .unwrap()
@@ -4940,6 +4943,7 @@ impl Bank {
             timings,
             log_messages_bytes_limit,
             None,
+            None,
             Some(pre_commit_callback),
         )
     }
@@ -4951,6 +4955,7 @@ impl Bank {
         timings: &mut ExecuteTimings,
         log_messages_bytes_limit: Option<usize>,
         pre_accounts_program_ids: Option<&HashSet<Pubkey>>,
+        pre_accounts_cpi_program_ids: Option<&HashSet<Pubkey>>,
         pre_commit_callback: impl FnOnce(&[TransactionProcessingResult]) -> Result<()>,
     ) -> Result<(
         Vec<TransactionCommitResult>,
@@ -4963,6 +4968,7 @@ impl Bank {
             timings,
             log_messages_bytes_limit,
             pre_accounts_program_ids,
+            pre_accounts_cpi_program_ids,
             Some(pre_commit_callback),
         )
     }
@@ -4974,6 +4980,7 @@ impl Bank {
         timings: &mut ExecuteTimings,
         log_messages_bytes_limit: Option<usize>,
         pre_accounts_program_ids: Option<&HashSet<Pubkey>>,
+        pre_accounts_cpi_program_ids: Option<&HashSet<Pubkey>>,
         pre_commit_callback: Option<impl FnOnce(&[TransactionProcessingResult]) -> Result<()>>,
     ) -> Result<(
         Vec<TransactionCommitResult>,
@@ -5001,6 +5008,7 @@ impl Bank {
                 strict_nonce_size_check: false,
                 drop_noop_transactions: false,
                 pre_accounts_program_ids,
+                pre_accounts_cpi_program_ids,
             },
         );
 

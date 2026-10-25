@@ -133,6 +133,7 @@ pub struct HandlerContext {
     replay_vote_sender: Option<ReplayVoteSender>,
     prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
     pre_accounts_program_ids: Option<Arc<ArcSwap<HashSet<Pubkey>>>>,
+    pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
 }
 
 impl HandlerContext {
@@ -154,6 +155,7 @@ struct CommonHandlerContext {
     replay_vote_sender: Option<ReplayVoteSender>,
     prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
     pre_accounts_program_ids: Option<Arc<ArcSwap<HashSet<Pubkey>>>>,
+    pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
 }
 
 impl CommonHandlerContext {
@@ -164,6 +166,7 @@ impl CommonHandlerContext {
             replay_vote_sender,
             prioritization_fee_cache,
             pre_accounts_program_ids,
+            pre_accounts_cpi_program_ids,
         } = self;
 
         HandlerContext {
@@ -173,6 +176,7 @@ impl CommonHandlerContext {
             replay_vote_sender,
             prioritization_fee_cache,
             pre_accounts_program_ids,
+            pre_accounts_cpi_program_ids,
         }
     }
 }
@@ -211,6 +215,7 @@ where
         replay_vote_sender: Option<ReplayVoteSender>,
         prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
         pre_accounts_program_ids: Option<Arc<ArcSwap<HashSet<Pubkey>>>>,
+        pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
     ) -> Arc<Self> {
         Self::do_new(
             block_verification_handler_count,
@@ -219,6 +224,7 @@ where
             replay_vote_sender,
             prioritization_fee_cache,
             pre_accounts_program_ids,
+            pre_accounts_cpi_program_ids,
             DEFAULT_POOL_CLEANER_INTERVAL,
             DEFAULT_MAX_POOLING_DURATION,
             DEFAULT_MAX_USAGE_QUEUE_COUNT,
@@ -241,6 +247,7 @@ where
             replay_vote_sender,
             prioritization_fee_cache,
             None,
+            None,
         )
     }
 
@@ -252,6 +259,7 @@ where
         replay_vote_sender: Option<ReplayVoteSender>,
         prioritization_fee_cache: Option<Arc<PrioritizationFeeCache>>,
         pre_accounts_program_ids: Option<Arc<ArcSwap<HashSet<Pubkey>>>>,
+        pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
         pool_cleaner_interval: Duration,
         max_pooling_duration: Duration,
         max_usage_queue_count: usize,
@@ -361,6 +369,7 @@ where
                 replay_vote_sender,
                 prioritization_fee_cache,
                 pre_accounts_program_ids,
+                pre_accounts_cpi_program_ids,
             },
             block_verification_handler_count,
             weak_self: weak_self.clone(),
@@ -599,6 +608,7 @@ impl TaskHandler for DefaultTaskHandler {
                 .as_ref()
                 .map(|s| s.load_full())
                 .as_deref(),
+            handler_context.pre_accounts_cpi_program_ids.as_deref(),
             handler_context.prioritization_fee_cache.as_deref(),
         );
         sleepless_testing::at(CheckPoint::TaskHandled(task_id));
@@ -1944,6 +1954,7 @@ mod tests {
                 replay_vote_sender,
                 prioritization_fee_cache,
                 None,
+                None,
                 pool_cleaner_interval,
                 max_pooling_duration,
                 max_usage_queue_count,
@@ -1966,6 +1977,7 @@ mod tests {
                 transaction_status_sender,
                 replay_vote_sender,
                 prioritization_fee_cache,
+                None,
                 None,
             )
         }
@@ -2721,6 +2733,78 @@ mod tests {
         assert_eq!(bank.transaction_count(), 1);
     }
 
+    #[test]
+    fn test_pre_accounts_cpi_scheduler_only_policy() {
+        let GenesisConfigInfo {
+            genesis_config,
+            mint_keypair,
+            ..
+        } = create_genesis_config(1_000_000_000);
+        let mut tx = system_transaction::transfer(
+            &mint_keypair,
+            &Pubkey::new_unique(),
+            2,
+            genesis_config.hash(),
+        );
+        let payer = tx.message.account_keys[0];
+        let bank = Bank::new_for_tests(&genesis_config);
+        let (bank, _bank_forks) = setup_dummy_fork_graph(bank);
+        // Select an existing builtin that isn't invoked by the system transfer.
+        let target = *bank
+            .get_transaction_processor()
+            .builtin_program_ids
+            .read()
+            .unwrap()
+            .iter()
+            .find(|id| !tx.message.account_keys.contains(id))
+            .expect("another registered builtin");
+        tx.message.account_keys.push(target);
+        tx.message.header.num_readonly_unsigned_accounts += 1;
+        tx.sign(&[&mint_keypair], genesis_config.hash());
+        let (sender, receiver) = crossbeam_channel::unbounded();
+        let pool = DefaultSchedulerPool::new(
+            None,
+            None,
+            Some(TransactionStatusSender {
+                sender,
+                dependency_tracker: None,
+            }),
+            None,
+            None,
+            None,
+            Some(Arc::new(HashSet::from([target]))),
+        );
+        let scheduler = pool
+            .take_scheduler(SchedulingContext::new(bank.clone()))
+            .expect("scheduler available");
+        scheduler
+            .schedule_execution(RuntimeTransaction::from_transaction_for_tests(tx), 23)
+            .expect("transaction scheduled");
+        let bank = BankWithScheduler::new(bank, Some(scheduler));
+        assert_matches!(bank.wait_for_completed_scheduler(), Some((Ok(()), _)));
+        let solana_runtime::transaction_execution::TransactionStatusMessage::Batch((batch, _)) =
+            receiver
+                .recv_timeout(Duration::from_secs(5))
+                .expect("transaction status emitted")
+        else {
+            panic!("expected transaction status batch")
+        };
+        assert_eq!(batch.transaction_indexes, vec![23]);
+        assert_eq!(batch.transactions.len(), 1);
+        assert_eq!(batch.pre_accounts.len(), 1);
+        assert!(
+            batch.pre_accounts[0]
+                .iter()
+                .any(|account| account.pubkey == payer)
+        );
+        assert!(
+            batch.pre_accounts[0]
+                .iter()
+                .any(|account| account.pubkey == target)
+        );
+        assert_eq!(bank.transaction_count(), 1);
+    }
+
     fn do_test_scheduler_schedule_execution_failure(extra_tx_after_failure: bool) {
         agave_logger::setup();
 
@@ -3056,8 +3140,9 @@ mod tests {
 
         let bank = Bank::new_for_tests(&genesis_config);
         let (bank, _bank_forks) = setup_dummy_fork_graph(bank);
-        let pool =
-            SchedulerPool::<PooledScheduler<StallingHandler>, _>::new(None, None, None, None, None, None);
+        let pool = SchedulerPool::<PooledScheduler<StallingHandler>, _>::new(
+            None, None, None, None, None, None, None,
+        );
 
         // This variable tracks the cumulative count of transactions since genesis, which is
         // incremented as test is progressed.
@@ -3451,6 +3536,7 @@ mod tests {
             replay_vote_sender: None,
             prioritization_fee_cache: None,
             pre_accounts_program_ids: None,
+            pre_accounts_cpi_program_ids: None,
         };
 
         let task = SchedulingStateMachine::create_task(tx, 0, &mut |_| {

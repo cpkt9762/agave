@@ -337,6 +337,7 @@ pub struct ProcessOptions {
     pub abort_on_invalid_block: bool,
     pub no_block_cost_limits: bool,
     pub pre_accounts_program_ids: Option<Arc<arc_swap::ArcSwap<HashSet<Pubkey>>>>,
+    pub pre_accounts_cpi_program_ids: Option<Arc<HashSet<Pubkey>>>,
 }
 
 pub(crate) fn process_blockstore_for_bank_0(

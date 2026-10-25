@@ -8,7 +8,9 @@ use {
         },
         account_overrides::AccountOverrides,
         nonce_info::NonceInfo,
-        pre_accounts_collector::{PreAccountsCollectionRoutines, PreAccountsCollector},
+        pre_accounts_collector::{
+            PreAccountsCollectionRoutines, PreAccountsCollector, pre_accounts_enabled,
+        },
         program_loader::{filter_executable_program_accounts, load_program_with_pubkey},
         rollback_accounts::RollbackAccounts,
         transaction_account_state_info::{
@@ -154,6 +156,7 @@ pub struct TransactionProcessingConfig<'a> {
     pub drop_noop_transactions: bool,
 
     pub pre_accounts_program_ids: Option<&'a HashSet<Pubkey>>,
+    pub pre_accounts_cpi_program_ids: Option<&'a HashSet<Pubkey>>,
 }
 
 /// Runtime environment for transaction batch processing.
@@ -489,8 +492,11 @@ impl<FG: ForkGraph> TransactionBatchProcessor<FG> {
 
         let pre_accounts_program_ids = config.pre_accounts_program_ids;
         let mut pre_accounts_collector = (config.recording_config.enable_pre_accounts_recording
-            && pre_accounts_program_ids.is_some())
-            .then(|| PreAccountsCollector::new_with_transaction_count(sanitized_txs.len()));
+            && pre_accounts_enabled(
+                pre_accounts_program_ids,
+                config.pre_accounts_cpi_program_ids,
+            ))
+        .then(|| PreAccountsCollector::new_with_transaction_count(sanitized_txs.len()));
 
         if program_cache_for_tx_batch.hit_max_limit {
             return LoadAndExecuteSanitizedTransactionsOutput {
@@ -545,11 +551,12 @@ impl<FG: ForkGraph> TransactionBatchProcessor<FG> {
             execute_timings
                 .saturating_add_in_place(ExecuteTimingType::CollectBalancesUs, collect_balances_us);
 
-            if let (Some(collector), Some(program_ids)) =
-                (&mut pre_accounts_collector, pre_accounts_program_ids)
-            {
-                collector.collect_pre_accounts(&mut account_loader, tx, program_ids);
-            }
+            pre_accounts_collector.collect_pre_accounts(
+                &mut account_loader,
+                tx,
+                pre_accounts_program_ids,
+                config.pre_accounts_cpi_program_ids,
+            );
 
             let (processing_result, single_execution_us) = measure_us!(match load_result {
                 // Unprocessable transactions always result in an error

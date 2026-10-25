@@ -1427,7 +1427,7 @@ pub(crate) mod external {
             let recorder = TransactionRecorder::new(record_sender);
             let (replay_vote_sender, replay_vote_receiver) = bounded(1024);
             let committer = Committer::new(None, replay_vote_sender, None);
-            let consumer = Consumer::new(committer, recorder, None, None);
+            let consumer = Consumer::new(committer, recorder, None, None, None);
             let shared_leader_state = SharedLeaderState::new(0, None, None);
             let exit = Arc::new(AtomicBool::new(false));
 
@@ -3181,7 +3181,7 @@ mod tests {
 
         let (replay_vote_sender, replay_vote_receiver) = bounded(1024);
         let committer = Committer::new(None, replay_vote_sender, None);
-        let consumer = Consumer::new(committer, recorder, None, None);
+        let consumer = Consumer::new(committer, recorder, None, None, None);
         let shared_leader_state = SharedLeaderState::new(0, None, None);
 
         let cluster_info = {

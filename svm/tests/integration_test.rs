@@ -4225,3 +4225,148 @@ mod balance_collector {
         }
     }
 }
+
+// No additional SBF fixture is needed: the registered compute-budget program is
+// passed as a read-only instruction account, never a top-level instruction.
+// This exercises B3's intentional account-key (not execution-trace) semantics.
+#[test_case(false, false; "default_neither")]
+#[test_case(true, false; "top_only")]
+#[test_case(false, true; "cpi_only")]
+#[test_case(true, true; "both")]
+fn test_pre_accounts_cpi_batch_processor(top: bool, cpi: bool) {
+    let payer = Keypair::new();
+    let recipient = Pubkey::new_unique();
+    let target = compute_budget::id();
+    let initial_balance = LAMPORTS_PER_SOL;
+    let mut entry = SvmTestEntry::default();
+    entry.add_initial_account(
+        payer.pubkey(),
+        &AccountSharedData::new(initial_balance, 0, &system_program::id()),
+    );
+    entry.add_initial_account(
+        recipient,
+        &AccountSharedData::new(initial_balance, 0, &system_program::id()),
+    );
+    for amount in [7, 11] {
+        let mut instruction = system_instruction::transfer(&payer.pubkey(), &recipient, amount);
+        instruction
+            .accounts
+            .push(AccountMeta::new_readonly(target, false));
+        entry.push_transaction(Transaction::new_signed_with_payer(
+            &[instruction],
+            Some(&payer.pubkey()),
+            &[&payer],
+            Hash::default(),
+        ));
+    }
+    entry.decrease_expected_lamports(&payer.pubkey(), 18 + 2 * LAMPORTS_PER_SIGNATURE);
+    entry.increase_expected_lamports(&recipient, 18);
+    let top_ids = std::collections::HashSet::from([system_program::id()]);
+    let cpi_ids = std::collections::HashSet::from([target]);
+    let mut env = SvmTestEnvironment::create(entry);
+    env.processing_config
+        .recording_config
+        .enable_pre_accounts_recording = true;
+    env.processing_config.pre_accounts_program_ids = top.then_some(&top_ids);
+    env.processing_config.pre_accounts_cpi_program_ids = cpi.then_some(&cpi_ids);
+    let output = env.execute(); // Existing harness also checks execution and final states.
+    if top || cpi {
+        let snapshots = output
+            .pre_accounts_collector
+            .expect("either policy enables capture")
+            .into_vecs();
+        assert_eq!(snapshots.len(), 2);
+        for (index, expected_balance) in [initial_balance, initial_balance + 7]
+            .into_iter()
+            .enumerate()
+        {
+            let snapshot = &snapshots[index];
+            let recipient_entries: Vec<_> = snapshot
+                .iter()
+                .filter(|account| account.pubkey == recipient)
+                .collect();
+            assert_eq!(
+                recipient_entries.len(),
+                1,
+                "both predicates must not duplicate copies"
+            );
+            assert_eq!(
+                recipient_entries[0].lamports, expected_balance,
+                "capture precedes each transaction, including batch-local writes"
+            );
+            assert!(snapshot.iter().any(|account| account.pubkey == target));
+        }
+    } else {
+        assert!(output.pre_accounts_collector.is_none());
+    }
+}
+
+#[test_case(false; "default_top_level_does_not_match_inner_call")]
+#[test_case(true; "cpi_whitelist_matches_inner_call")]
+fn test_pre_accounts_cpi_real_invocation(cpi: bool) {
+    let payer = Keypair::new();
+    let recipient = Pubkey::new_unique();
+    let initial_balance = LAMPORTS_PER_SOL;
+    let mut entry = SvmTestEntry::default();
+    entry.add_initial_program("simple-transfer");
+    entry.add_initial_account(
+        payer.pubkey(),
+        &AccountSharedData::new(initial_balance, 0, &system_program::id()),
+    );
+    entry.add_initial_account(
+        recipient,
+        &AccountSharedData::new(initial_balance, 0, &system_program::id()),
+    );
+    let instruction = Instruction::new_with_bytes(
+        program_address("simple-transfer"),
+        &7u64.to_be_bytes(),
+        vec![
+            AccountMeta::new(payer.pubkey(), true),
+            AccountMeta::new(recipient, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+    );
+    entry.push_transaction(Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[&payer],
+        Hash::default(),
+    ));
+    entry.decrease_expected_lamports(&payer.pubkey(), 7 + LAMPORTS_PER_SIGNATURE);
+    entry.increase_expected_lamports(&recipient, 7);
+    let ids = std::collections::HashSet::from([system_program::id()]);
+    let mut env = SvmTestEnvironment::create(entry);
+    env.processing_config
+        .recording_config
+        .enable_pre_accounts_recording = true;
+    // The old registry alone must not capture an inner invocation.
+    env.processing_config.pre_accounts_program_ids = Some(&ids);
+    env.processing_config.pre_accounts_cpi_program_ids = cpi.then_some(&ids);
+    let output = env.execute();
+    let logs = output.processing_results[0]
+        .processed_transaction()
+        .expect("processed transfer")
+        .execution_details()
+        .expect("executed transfer")
+        .log_messages
+        .as_ref()
+        .expect("recorded execution logs");
+    assert!(
+        logs.iter()
+            .any(|log| log == &format!("Program {} invoke [2]", system_program::id())),
+        "real system-program CPI executed"
+    );
+    let snapshots = output
+        .pre_accounts_collector
+        .expect("nonempty old registry enables collector")
+        .into_vecs();
+    assert_eq!(snapshots.len(), 1);
+    assert_eq!(snapshots[0].is_empty(), !cpi);
+    if cpi {
+        let recipient_pre = snapshots[0]
+            .iter()
+            .find(|account| account.pubkey == recipient)
+            .expect("recipient pre-state captured");
+        assert_eq!(recipient_pre.lamports, initial_balance);
+    }
+}

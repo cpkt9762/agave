@@ -2285,6 +2285,7 @@ mod tests {
                 TransactionRecorder::new(record_sender),
                 None,
                 None,
+                None,
             ),
             finished_work_sender,
             shared_leader_state,
